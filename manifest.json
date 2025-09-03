@@ -1,10 +1,10 @@
 {
-  "name": "Siri Web Assistant",
-  "short_name": "Siri",
+  "name": "Jarvis Web Assistant",
+  "short_name": "Jarvis",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#0f1720",
-  "theme_color": "#22c55e",
+  "theme_color": "#ff4500",
   "icons": [
     {
       "src": "icon.png",
