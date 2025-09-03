@@ -3,172 +3,74 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Jarvis — Web Voice Assistant (Enhanced)</title>
-<link rel="manifest" href="manifest.json" />
+<title>Jarvis — Web Voice Assistant (Ultimate)</title>
+<link rel="manifest" href="manifest.json">
 <script>
-  // Register service worker (silent)
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("sw.js").catch(()=>{});
-    });
+    navigator.serviceWorker.register("sw.js").catch(e => console.warn('SW register failed', e));
   }
 </script>
 <style>
-  /* ============================================================
-     THEME: Jarvis Neon (Orange / Red / Green)
-     - Dark graphite background with subtle gradient
-     - Glassy cards, neon rings, soft glows
-     ============================================================ */
-  :root{
-    --bg:#0b0d10;
-    --bg2:#0f1116;
-    --glass: rgba(255,255,255,0.04);
-    --card:#0d1117;
-    --muted:#9aa4b2;
-    --text:#e9eef5;
-
-    --accent: #f97316;   /* orange */
-    --danger: #ef4444;   /* red */
-    --ok:     #22c55e;   /* green */
-    --accent2:#fb923c;   /* orange-200 for gradients */
-
-    --ring: 0 0 0 2px rgba(249,115,22,0.25), 0 0 22px rgba(249,115,22,0.25);
-    --ring-red: 0 0 0 2px rgba(239,68,68,0.25), 0 0 22px rgba(239,68,68,0.25);
-    --ring-green: 0 0 0 2px rgba(34,197,94,0.25), 0 0 22px rgba(34,197,94,0.25);
-  }
-  html,body{
-    height:100%;
-    margin:0;
-    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    color:var(--text);
-    background:
-      radial-gradient(1200px 800px at 20% -10%, rgba(249,115,22,0.08), transparent 60%),
-      radial-gradient(900px 600px at 120% 10%, rgba(34,197,94,0.06), transparent 60%),
-      linear-gradient(180deg, #090b0f 0%, #0a0d12 100%);
-    overflow-y:auto;
-  }
-  .wrap{max-width:1100px; margin:18px auto; padding:18px;}
-  header{display:flex;align-items:center;gap:16px}
-  h1{font-size:22px;margin:0; letter-spacing: .5px}
-  .subtitle{color:var(--muted); font-size:13px}
-  .controls{display:flex;gap:8px; margin-top:14px; flex-wrap:wrap}
-  button{
-    background:var(--card);
-    color:inherit;
-    border:1px solid rgba(255,255,255,0.06);
-    padding:10px 12px; border-radius:12px; cursor:pointer;
-    transition: transform .06s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.25), inset 0 0 0 1px rgba(255,255,255,0.02);
-  }
-  button:hover{ transform: translateY(-1px); }
-  button:active{ transform: translateY(0); }
-  button.primary{
-    background: radial-gradient(120% 160% at 30% 20%, var(--accent2), var(--accent));
-    color:#1a1009; font-weight:800;
-    box-shadow: var(--ring);
-    border-color: rgba(249,115,22,0.35);
-  }
-  .panel{margin-top:18px; display:grid; grid-template-columns: 1fr 420px; gap:16px}
-  .card{
-    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border-radius:14px; padding:14px;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.035);
-    border:1px solid rgba(255,255,255,0.06)
-  }
-  #left {min-height:520px}
-  #right {min-height:520px}
-  #transcript{
-    min-height:160px; background: rgba(255,255,255,0.02); padding:10px; border-radius:10px;
-    color:#d7ffde; overflow:auto; border:1px dashed rgba(34,197,94,0.15); box-shadow: var(--ring-green);
-  }
-  #log{
-    height:260px; overflow:auto; font-size:13px; color:var(--muted);
-    background: rgba(0,0,0,0.25); padding:8px; border-radius:10px; border:1px dashed rgba(249,115,22,0.15)
-  }
-  .row{display:flex; gap:8px; align-items:center}
-  label{font-size:13px;color:var(--muted)}
-  input[type="text"]{
-    flex:1; padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);
-    background:rgba(255,255,255,0.02); color:inherit; outline:none
-  }
-  input[type="text"]:focus{ box-shadow: var(--ring) }
-  .hint{font-size:12px;color:var(--muted); margin-top:8px}
-  .smallbtn{padding:8px 10px; font-size:13px}
-  .status{
-    display:inline-block;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.03);
-    color:var(--muted); font-size:13px; border:1px solid rgba(255,255,255,0.06)
-  }
-  .status.listen{ color:#06190c; background:linear-gradient(90deg, var(--ok), #86efac); box-shadow: var(--ring-green); }
-  .status.idle{ color:#3f2720; background:linear-gradient(90deg, #fed7aa, var(--accent2)); box-shadow: var(--ring); }
-  .status.err{ color:#2b0909; background:linear-gradient(90deg, #fecaca, var(--danger)); box-shadow: var(--ring-red); }
-  .command-list{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
-  .cmd{
-    background:rgba(255,255,255,0.02); padding:9px;border-radius:10px;font-size:13px;color:var(--muted); cursor:pointer;
-    border:1px solid rgba(255,255,255,0.06)
-  }
-  .cmd:hover{ box-shadow: var(--ring); color:#ffedd5 }
-  footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
-  .kbd{background:#0c1420;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.06); font-weight:700}
-  .muted{color:var(--muted)}
-  .utility-dock{
-    max-width:1100px; margin: 12px auto 22px; padding:12px;
-    display:grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap:10px;
-  }
-  .util{
-    background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:#e6eef8;
-    padding:12px; border-radius:14px; text-align:center; font-size:14px; cursor:pointer;
-    transition: transform .06s ease, box-shadow .2s ease;
-  }
-  .util:hover{ transform: translateY(-1px); box-shadow: var(--ring); }
-  .util small{ display:block; color:#94a3b8; font-size:12px; margin-top:4px }
-
-  /* ----------- Overlays ----------- */
-  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 9999; color: #fff; font-family: inherit; }
-  #powerOverlay { background: rgba(0,0,0,0.98); flex-direction: column; gap:18px; }
-  #powerSpinner { width:64px;height:64px;border-radius:50%; border:6px solid rgba(255,255,255,0.12); border-top-color:#fff; animation: spin 1s linear infinite}
-  @keyframes spin { to{ transform: rotate(360deg);} }
-
-  #cameraOverlay { background: rgba(0,0,0,0.94); color:#fff; flex-direction: column; gap:10px; }
-  #cameraView { width:min(92vw,960px); height: min(70vh,520px); background:#000; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.08) }
-  #cameraView video{ width:100%; height:100%; object-fit:cover }
-  .overlayTopBar{
-    position: fixed; top:14px; left:50%; transform: translateX(-50%);
-    display:flex; gap:8px; align-items:center; background:rgba(255,255,255,0.06);
-    padding:8px 12px; border:1px solid rgba(255,255,255,0.1); border-radius:999px; z-index:10000; color:#fff;
-    backdrop-filter: blur(8px);
-  }
-  .overlayTopBar button{ background:transparent; border:1px solid rgba(255,255,255,0.2); color:#fff; padding:8px 10px; border-radius:999px; cursor:pointer }
-
-  #lockOverlay{ background: rgba(0,0,0,0.9); color:#fff; flex-direction:column; gap:12px; text-align:center }
-  #flashlightOverlay{ background:#ffffff; display:none } /* white screen to simulate torch */
-
-  .badge-line{ text-align:center; color:#94a3b8; font-size:12px; margin-bottom:18px }
-
-  /* Self destruct HUD */
-  #boomCanvas { position: fixed; inset:0; pointer-events:none; z-index:11000; display:none }
-  #hudOverlay{
-    position: fixed; inset:0; display:none; z-index:11001; align-items:center; justify-content:center; flex-direction:column;
-    background: radial-gradient(600px 400px at 50% 50%, rgba(239,68,68,0.06), transparent 60%);
-    color:#fff;
-  }
-  #hudCountdown{
-    font-size: clamp(60px, 12vw, 160px);
-    line-height: 1; font-weight: 900;
-    text-shadow: 0 0 20px rgba(239,68,68,0.85), 0 0 60px rgba(249,115,22,0.55);
-  }
-  #hudText{
-    margin-top:10px; font-size:18px; letter-spacing:2px; color:#ffd7cc;
-    text-shadow: 0 0 16px rgba(249,115,22,0.8);
-  }
-  .hidden{ display:none !important; }
-
-  /* voice select */
-  select.verysmall{
-    padding:8px 10px; border-radius:10px; background:var(--card); color:inherit; border:1px solid rgba(255,255,255,0.08)
-  }
-
-  /* responsive */
-  @media (max-width:980px){ .panel{grid-template-columns:1fr} #right{order:2} }
+/* ==========================
+   THEME (Jarvis) - orange/green
+   ========================== */
+:root{
+  --bg:#081018;
+  --card:#09121a;
+  --muted:#9aa6b3;
+  --accent:#ff6a00; /* orange warm accent */
+  --accent2:#22c55e; /* green secondary */
+  --glass: rgba(255,255,255,0.03);
+  --success: #22c55e;
+  --danger: #ff6a00;
+}
+html,body{height:100%; margin:0; font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg,#041018 0%, #081018 100%); color:#e6eef8}
+.wrap{max-width:1100px; margin:18px auto; padding:18px;}
+header{display:flex;align-items:center;gap:16px}
+h1{font-size:20px;margin:0}
+.subtitle{color:var(--muted); font-size:13px}
+.controls{display:flex;gap:8px; margin-top:14px; flex-wrap:wrap}
+button{background:var(--card); color:inherit;border:1px solid rgba(255,255,255,0.03); padding:10px 12px; border-radius:8px; cursor:pointer}
+button.primary{background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#022; font-weight:700}
+.panel{margin-top:18px; display:grid; grid-template-columns: 1fr 420px; gap:16px}
+.card{background:var(--glass); border-radius:10px; padding:14px; box-shadow:0 6px 24px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03)}
+#left {min-height:520px}
+#right {min-height:520px}
+#transcript{min-height:160px; background: rgba(255,255,255,0.02); padding:10px; border-radius:8px; color:#dff0d8; overflow:auto}
+#log{height:260px; overflow:auto; font-size:13px; color:var(--muted); background: rgba(255,255,255,0.01); padding:8px; border-radius:6px}
+.row{display:flex; gap:8px; align-items:center}
+label{font-size:13px;color:var(--muted)}
+input[type="text"], input[type="search"], textarea{flex:1; padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03); background:transparent; color:inherit}
+.hint{font-size:12px;color:var(--muted); margin-top:8px}
+.smallbtn{padding:6px 8px; font-size:13px}
+.status{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03); color:var(--muted); font-size:13px}
+.command-list{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}
+.cmd{background:rgba(255,255,255,0.02); padding:8px;border-radius:6px;font-size:13px;color:var(--muted); cursor:pointer}
+footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+.kbd{background:#071827;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.04); font-weight:700}
+.muted{color:var(--muted)}
+.utility-dock{max-width:1100px; margin: 12px auto 22px; padding:12px; display:grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap:10px;}
+.util{ background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); color:#e6eef8; padding:12px; border-radius:12px; text-align:center; font-size:14px; cursor:pointer }
+.util small{ display:block; color:#94a3b8; font-size:12px; margin-top:4px }
+.overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 9999; color: #fff; font-family: inherit; }
+#powerOverlay { background: rgba(0,0,0,0.98); flex-direction: column; gap:18px; }
+#powerSpinner { width:64px;height:64px;border-radius:50%; border:6px solid rgba(255,255,255,0.12); border-top-color:#fff; animation: spin 1s linear infinite}
+@keyframes spin { to{ transform: rotate(360deg);} }
+#cameraOverlay { background: rgba(0,0,0,0.94); color:#fff; flex-direction: column; gap:10px; }
+#cameraView { width:min(92vw,960px); height: min(70vh,520px); background:#000; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,0.06) }
+#cameraView video{ width:100%; height:100%; object-fit:cover }
+.overlayTopBar{ position: fixed; top:14px; left:50%; transform: translateX(-50%); display:flex; gap:8px; align-items:center; background:rgba(255,255,255,0.04); padding:8px 12px; border:1px solid rgba(255,255,255,0.06); border-radius:999px; z-index:10000; color:#fff }
+.overlayTopBar button{ background:transparent; border:1px solid rgba(255,255,255,0.12); color:#fff; padding:8px 10px; border-radius:999px; cursor:pointer }
+#lockOverlay{ background: rgba(0,0,0,0.9); color:#fff; flex-direction:column; gap:12px; text-align:center }
+#flashlightOverlay{ background:#ffffff; display:none } /* white screen to simulate torch */
+.badge-line{ text-align:center; color:#94a3b8; font-size:12px; margin-bottom:18px }
+#boomCanvas { position: fixed; inset:0; pointer-events:none; z-index:11000; display:none }
+.hidden{ display:none !important; }
+select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:inherit; border:1px solid rgba(255,255,255,0.03) }
+.voice-meter { width:100%; height:36px; background:rgba(255,255,255,0.02); border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.03) }
+.voice-meter > div { height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width 120ms linear; }
+.mem-list { max-height:180px; overflow:auto; padding:6px; background: rgba(255,255,255,0.01); border-radius:8px; margin-top:8px; }
+@media (max-width:980px){ .panel{grid-template-columns:1fr} #right{order:2} }
 </style>
 </head>
 <body>
@@ -179,7 +81,7 @@
         <div class="subtitle">Speak commands or type them. Works in Chrome/Edge. No server required.</div>
       </div>
       <div style="margin-left:auto;text-align:right">
-        <div class="status idle" id="listenStatus">Idle</div>
+        <div class="status" id="listenStatus">Idle</div>
         <div style="height:6px"></div>
         <div class="muted" style="font-size:12px">Language: <span id="langLabel">English (en-US)</span></div>
       </div>
@@ -189,17 +91,17 @@
       <button id="btnStart" class="primary">Start Listening</button>
       <button id="btnStop">Stop</button>
       <button id="btnWake">Wake-word: <span id="wakeState">Off</span></button>
+      <label style="margin-left:6px;color:var(--muted)">Custom wake:</label>
+      <input id="wakeInput" type="text" placeholder="e.g. Oye Jarvis" style="width:160px"/>
+      <button id="btnSaveWake" class="smallbtn">Save</button>
       <button id="btnToggleVoice">Toggle Voice Reply</button>
       <button id="btnClearLog" class="smallbtn">Clear Log</button>
-
       <select id="langSelect" class="verysmall">
         <option value="en-US">English (en-US)</option>
         <option value="hi-IN">Hindi (hi-IN)</option>
       </select>
-
       <label style="margin-left:8px;color:var(--muted)">Voice:</label>
       <select id="voiceSelect" class="verysmall"></select>
-
       <button id="btnSaveMemory" title="Save memory (e.g. remember my birthday)">💾 Save Memory</button>
       <button id="btnShowMemory" title="Show saved memories">🗂️ Memories</button>
     </div>
@@ -214,10 +116,7 @@
           <button id="btnSend" class="smallbtn">Send</button>
         </div>
 
-        <div class="hint">
-          Tip: Say <b>"Hey Jarvis"</b> to activate when wake-word is ON. Try:
-          <em>open youtube, search weather Chennai, time, wiki Tesla, calculate 12*8, set timer 10 seconds</em>
-        </div>
+        <div class="hint">Tip: Say <b>"Hey Jarvis"</b> (or your custom wake) to activate when wake-word is ON. Try: <em>open youtube, search weather Chennai, time, wiki Tesla, calculate 12*8, set timer 10 seconds</em></div>
 
         <div style="margin-top:12px">
           <strong>Quick commands</strong>
@@ -235,7 +134,7 @@
           </div>
         </div>
 
-        <hr style="border-color: rgba(255,255,255,0.08); margin:14px 0">
+        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
 
         <h4>Extra features (voice shortcuts)</h4>
         <div class="row" style="gap:10px;flex-wrap:wrap;margin-top:10px">
@@ -248,7 +147,7 @@
           <button class="smallbtn" id="btnSelfDestruct">Self-Destruct!</button>
         </div>
 
-        <hr style="border-color: rgba(255,255,255,0.08); margin:14px 0">
+        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
 
         <div style="margin-top:8px">
           <strong>Games</strong>
@@ -257,6 +156,22 @@
             <button id="btnGuess" class="smallbtn">Guess Number</button>
           </div>
         </div>
+
+        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
+
+        <h4>Voice / Mood meter</h4>
+        <div class="voice-meter" id="voiceMeter"><div></div></div>
+        <div class="hint">Jarvis listens to loudness to infer mood (basic heuristic).</div>
+
+        <hr style="border-color: rgba(255,255,255,0.04); margin:14px 0">
+
+        <h4>Face-login (optional)</h4>
+        <div class="row" style="gap:8px; align-items:center">
+          <button id="btnFaceCapture" class="smallbtn">Capture Face (Enroll)</button>
+          <button id="btnFaceLogin" class="smallbtn">Login with Face</button>
+          <div id="faceStatus" class="muted" style="margin-left:8px">No face enrolled</div>
+        </div>
+        <div id="facePreview" style="margin-top:8px"></div>
 
       </div>
 
@@ -277,6 +192,14 @@
           <label>Wake-word required:</label>
           <input type="checkbox" id="chkWakeReq" />
         </div>
+
+        <h4 style="margin-top:12px">Memories</h4>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <input id="memInput" placeholder="Note to remember" />
+          <button id="memAdd" class="smallbtn">Add</button>
+        </div>
+        <div class="mem-list" id="memList"></div>
+
         <div style="margin-top:10px" class="muted">Supported in Chrome/Edge. Safari support is limited.</div>
       </div>
     </div>
@@ -299,10 +222,10 @@
       <div class="util" data-cmd="unlock screen">Unlock Screen</div>
     </div>
 
-    <div class="badge-line">Extra features (weather/news/quotes/spotify/games/camera/memory) added — all client-side.</div>
+    <div class="badge-line">Extra features (weather/news/quotes/spotify/games/camera/memory/wakeword/mood/face-login) — all client-side.</div>
 
     <footer>
-      Built for you — say hi and try commands. DEVELOPED BY RUDRANSH PANDEY (A GENIUS).
+      Built for you — say hi and try commands. DEVELOPED BY RUDRANSH PANDEY (A GENIUS).  
     </footer>
   </div>
 
@@ -325,1038 +248,1136 @@
     <div class="overlayTopBar">
       <button id="btnCloseCamera">Close</button>
       <button id="btnSwitchCamera">Switch</button>
+      <button id="btnCameraSnap">Snap</button>
     </div>
     <div id="cameraView"><video id="camVideo" autoplay playsinline muted></video></div>
   </div>
 
-  <!-- Self-destruct HUD + Canvas -->
-  <div id="hudOverlay" class="overlay">
-    <div id="hudCountdown">3</div>
-    <div id="hudText">JARVIS: SELF-DESTRUCT SEQUENCE</div>
-  </div>
   <canvas id="boomCanvas"></canvas>
 
-  <script>
-  /* ============================================================
-     Jarvis Assistant Core (voice, commands, UI)
-     Based on your previous file — names/theme changed + robust self-destruct
-     ============================================================ */
-  (function(){
-    // -------- Feature detection --------
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const synth = window.speechSynthesis;
+<script>
+/* ============================================================
+   Jarvis — Big single-file assistant
+   - Original commands preserved (open/search/wiki/calc/timer/music/joke)
+   - New features added: custom wake word, face-capture login (enroll), mood detector (basic), weather shortcut, translate shortcut, memories UI, improved self-destruct, better screenshot, voice meter visualization, voice selection.
+   - All client-side, no backend.
+   ============================================================ */
+(function(){
+  // Basic feature detection
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const synth = window.speechSynthesis;
 
-    // -------- UI elements --------
-    const btnStart = document.getElementById('btnStart');
-    const btnStop = document.getElementById('btnStop');
-    const btnWake = document.getElementById('btnWake');
-    const btnToggleVoice = document.getElementById('btnToggleVoice');
-    const btnClearLog = document.getElementById('btnClearLog');
-    const langSelect = document.getElementById('langSelect');
-    const langLabel = document.getElementById('langLabel');
-    const listenStatus = document.getElementById('listenStatus');
-    const transcriptEl = document.getElementById('transcript');
-    const cmdInput = document.getElementById('cmdInput');
-    const btnSend = document.getElementById('btnSend');
-    const logEl = document.getElementById('log');
-    const chkVoice = document.getElementById('chkVoice');
-    const chkContinuous = document.getElementById('chkContinuous');
-    const wakeStateSpan = document.getElementById('wakeState');
-    const chkWakeReq = document.getElementById('chkWakeReq');
-    const voiceSelect = document.getElementById('voiceSelect');
-    const btnSaveMemory = document.getElementById('btnSaveMemory');
-    const btnShowMemory = document.getElementById('btnShowMemory');
+  // UI elements
+  const btnStart = document.getElementById('btnStart');
+  const btnStop = document.getElementById('btnStop');
+  const btnWake = document.getElementById('btnWake');
+  const btnToggleVoice = document.getElementById('btnToggleVoice');
+  const btnClearLog = document.getElementById('btnClearLog');
+  const langSelect = document.getElementById('langSelect');
+  const langLabel = document.getElementById('langLabel');
+  const listenStatus = document.getElementById('listenStatus');
+  const transcriptEl = document.getElementById('transcript');
+  const cmdInput = document.getElementById('cmdInput');
+  const btnSend = document.getElementById('btnSend');
+  const logEl = document.getElementById('log');
+  const chkVoice = document.getElementById('chkVoice');
+  const chkContinuous = document.getElementById('chkContinuous');
+  const wakeStateSpan = document.getElementById('wakeState');
+  const chkWakeReq = document.getElementById('chkWakeReq');
+  const voiceSelect = document.getElementById('voiceSelect');
+  const btnSaveMemory = document.getElementById('btnSaveMemory');
+  const btnShowMemory = document.getElementById('btnShowMemory');
+  const wakeInput = document.getElementById('wakeInput');
+  const btnSaveWake = document.getElementById('btnSaveWake');
 
-    // Add-on anchors (buttons)
-    const btnWeather = document.getElementById('btnWeather');
-    const btnNews = document.getElementById('btnNews');
-    const btnQuote = document.getElementById('btnQuote');
-    const btnSpotify = document.getElementById('btnSpotify');
-    const btnTranslate = document.getElementById('btnTranslate');
-    const btnScreenshot = document.getElementById('btnScreenshot');
-    const btnSelfDestruct = document.getElementById('btnSelfDestruct');
-    const btnRPS = document.getElementById('btnRPS');
-    const btnGuess = document.getElementById('btnGuess');
+  const btnWeather = document.getElementById('btnWeather');
+  const btnNews = document.getElementById('btnNews');
+  const btnQuote = document.getElementById('btnQuote');
+  const btnSpotify = document.getElementById('btnSpotify');
+  const btnTranslate = document.getElementById('btnTranslate');
+  const btnScreenshot = document.getElementById('btnScreenshot');
+  const btnSelfDestruct = document.getElementById('btnSelfDestruct');
+  const btnRPS = document.getElementById('btnRPS');
+  const btnGuess = document.getElementById('btnGuess');
 
-    // overlays
-    const powerOverlay = document.getElementById('powerOverlay');
-    const restartText = document.getElementById('restartText');
-    const flashlightOverlay = document.getElementById('flashlightOverlay');
-    const lockOverlay = document.getElementById('lockOverlay');
-    const unlockBtn = document.getElementById('unlockBtn');
-    const cameraOverlay = document.getElementById('cameraOverlay');
-    const camVideo = document.getElementById('camVideo');
-    const btnCloseCamera = document.getElementById('btnCloseCamera');
-    const btnSwitchCamera = document.getElementById('btnSwitchCamera');
-    const boomCanvas = document.getElementById('boomCanvas');
-    const hudOverlay = document.getElementById('hudOverlay');
-    const hudCountdown = document.getElementById('hudCountdown');
+  const powerOverlay = document.getElementById('powerOverlay');
+  const restartText = document.getElementById('restartText');
+  const flashlightOverlay = document.getElementById('flashlightOverlay');
+  const lockOverlay = document.getElementById('lockOverlay');
+  const unlockBtn = document.getElementById('unlockBtn');
+  const cameraOverlay = document.getElementById('cameraOverlay');
+  const camVideo = document.getElementById('camVideo');
+  const btnCloseCamera = document.getElementById('btnCloseCamera');
+  const btnSwitchCamera = document.getElementById('btnSwitchCamera');
+  const btnCameraSnap = document.getElementById('btnCameraSnap');
+  const boomCanvas = document.getElementById('boomCanvas');
+  const voiceMeter = document.getElementById('voiceMeter').firstElementChild;
 
-    // -------- State --------
-    let recognition = null;
-    let listening = false;
-    let wakeWordOn = false;
-    let lastTranscript = '';
-    let lang = 'en-US';
-    let camStream = null;
-    let usingBackCam = true;
+  const btnFaceCapture = document.getElementById('btnFaceCapture');
+  const btnFaceLogin = document.getElementById('btnFaceLogin');
+  const faceStatus = document.getElementById('faceStatus');
+  const facePreview = document.getElementById('facePreview');
 
-    // -------- Helpers --------
-    function $(sel, root=document){ return root.querySelector(sel); }
-    function log(message, type='info'){
-      const time = new Date().toLocaleTimeString();
-      const el = document.createElement('div');
-      const color = type==='err' ? '#ff7b7b' : '#ffe0cc';
-      el.innerHTML = `<strong style="color:#fca311">${time}</strong> — <span style="color:${color}">${escapeHtml(message)}</span>`;
-      logEl.prepend(el);
+  const memInput = document.getElementById('memInput');
+  const memAdd = document.getElementById('memAdd');
+  const memList = document.getElementById('memList');
+
+  // State
+  let recognition = null;
+  let listening = false;
+  let wakeWordOn = false;
+  let lastTranscript = '';
+  let lang = 'en-US';
+  let camStream = null;
+  let usingBackCam = true;
+  let wakeRequired = false;
+  let availableVoices = [];
+  let audioContext = null;
+  let analyser = null;
+  let meterDataArray = null;
+  let meterSource = null;
+  let faceDataUrl = localStorage.getItem('jarvis_face') || null;
+  let customWake = localStorage.getItem('jarvis_wake') || 'hey jarvis';
+
+  // small datasets
+  const jokes = [
+    "Why did the developer go broke? Because he used up all his cache.",
+    "Why do programmers prefer dark mode? Because the light attracts bugs.",
+    "I told my computer I needed a break, and it said — no problem, I'll go to sleep."
+  ];
+  const quotes = [
+    "The best time to plant a tree was 20 years ago. The second best time is now.",
+    "Don't watch the clock; do what it does. Keep going.",
+    "You don't have to be great to start, but you have to start to be great."
+  ];
+
+  // Logging helper
+  function log(message, type='info'){
+    const time = new Date().toLocaleTimeString();
+    const el = document.createElement('div');
+    el.innerHTML = `<strong style="color:${type==='err'?'#ff9b8a':'#9ae6b4'}">${time}</strong> — <span style="color:${type==='err'?'#ffb3b3':'#cfe8ff'}">${escapeHtml(message)}</span>`;
+    logEl.prepend(el);
+  }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
+
+  // Speak helper with voice selection
+  function populateVoices(){
+    availableVoices = synth.getVoices() || [];
+    voiceSelect.innerHTML = '';
+    availableVoices.forEach((v, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = `${v.name} — ${v.lang} ${v.default ? '(default)' : ''}`;
+      voiceSelect.appendChild(opt);
+    });
+    // select previous if stored
+    const stored = localStorage.getItem('jarvis_voice_index');
+    if(stored && availableVoices[stored]) voiceSelect.value = stored;
+  }
+  if(synth) {
+    populateVoices();
+    if(typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = populateVoices;
     }
-    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-    // -------- Speech synthesis helpers --------
-    let availableVoices = [];
-    function populateVoices(){
-      try{
-        availableVoices = synth.getVoices() || [];
-        voiceSelect.innerHTML = '';
-        availableVoices.forEach((v, i) => {
-          const opt = document.createElement('option');
-          opt.value = i;
-          opt.textContent = `${v.name} — ${v.lang} ${v.default ? '(default)' : ''}`;
-          voiceSelect.appendChild(opt);
-        });
-      }catch(_){}
+  }
+  function speak(text, opts = {}){
+    if(!chkVoice.checked) return;
+    if(!synth) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = opts.lang || lang;
+      u.rate = opts.rate || 1.0;
+      u.pitch = opts.pitch || 1.0;
+      if(voiceSelect.value && availableVoices[voiceSelect.value]) u.voice = availableVoices[voiceSelect.value];
+      synth.cancel(); // stop previous
+      synth.speak(u);
+      log('Jarvis: ' + text);
+    } catch (e) {
+      console.error('synth error', e);
     }
-    if(synth) {
-      populateVoices();
-      if(typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
-        speechSynthesis.onvoiceschanged = populateVoices;
+  }
+
+  // Recognition setup (keeps original behavior)
+  function setupRecognition(){
+    if(!SpeechRecognition) {
+      listenStatus.textContent = 'SpeechRecognition not supported';
+      btnStart.disabled = true; btnStop.disabled = true;
+      return;
+    }
+    recognition = new SpeechRecognition();
+    recognition.lang = lang;
+    recognition.interimResults = false;
+    recognition.continuous = chkContinuous.checked;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      listening = true;
+      listenStatus.textContent = 'Listening...';
+      btnStart.textContent = 'Listening';
+      log('Voice recognition started');
+      // start mic meter
+      startVoiceMeter();
+    };
+
+    recognition.onend = () => {
+      listening = false;
+      listenStatus.textContent = 'Idle';
+      btnStart.textContent = 'Start Listening';
+      log('Voice recognition stopped', 'info');
+      stopVoiceMeter();
+      if(chkContinuous.checked && recognition){
+        setTimeout(()=> { try{ recognition.start() } catch(e){} }, 250);
       }
-    }
-    function speak(text, opts = {}){
-      if(!chkVoice.checked) return;
-      if(!synth) return;
-      try {
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = opts.lang || lang;
-        u.rate = opts.rate || 1.0;
-        u.pitch = opts.pitch || 1.0;
-        if(voiceSelect.value && availableVoices[voiceSelect.value]) u.voice = availableVoices[voiceSelect.value];
-        synth.cancel(); // stop previous
-        synth.speak(u);
-        log('Jarvis: ' + text);
-      } catch (e) {
-        console.error('synth error', e);
-      }
-    }
+    };
 
-    // -------- Recognition setup --------
-    function setStatus(mode){
-      listenStatus.classList.remove('idle','listen','err');
-      listenStatus.classList.add(mode);
-      if(mode==='listen') listenStatus.textContent='Listening...';
-      else if(mode==='idle') listenStatus.textContent='Idle';
-      else listenStatus.textContent='Error';
-    }
-    function setupRecognition(){
-      if(!SpeechRecognition) {
-        setStatus('err');
-        listenStatus.textContent='SpeechRecognition not supported';
-        btnStart.disabled = true; btnStop.disabled = true;
-        return;
-      }
-      recognition = new SpeechRecognition();
-      recognition.lang = lang;
-      recognition.interimResults = false;
-      recognition.continuous = chkContinuous.checked;
-      recognition.maxAlternatives = 1;
+    recognition.onerror = (ev) => {
+      log('Speech error: ' + ev.error, 'err');
+      stopVoiceMeter();
+    };
 
-      recognition.onstart = () => {
-        listening = true;
-        setStatus('listen');
-        btnStart.textContent = 'Listening';
-        log('Voice recognition started');
-      };
-
-      recognition.onend = () => {
-        listening = false;
-        setStatus('idle');
-        btnStart.textContent = 'Start Listening';
-        log('Voice recognition stopped', 'info');
-        if(chkContinuous.checked && recognition){
-          setTimeout(()=> { try{ recognition.start() } catch(e){} }, 250);
+    recognition.onresult = (ev) => {
+      const res = ev.results[ev.results.length - 1][0].transcript.trim();
+      lastTranscript = res;
+      addTranscriptEntry('User: ' + res);
+      log('Heard: ' + res);
+      // special wake behavior: if wake required or custom set, use it
+      const lw = res.toLowerCase();
+      const wakeNormalized = customWake ? customWake.toLowerCase() : 'hey jarvis';
+      if(chkWakeReq.checked){
+        if(lw.includes(wakeNormalized) || lw.includes('hey jarvis') || lw.includes('ok jarvis')){
+          const stripped = lw.replace(/^.*?(hey jarvis|ok jarvis|"+wakeNormalized+")[, ]*/,'').trim();
+          const command = stripped ? stripped : '';
+          if(command) handleCommand(command);
+          else { speak('Yes?'); }
+          return;
+        } else {
+          log('Ignored — wake-word required', 'info');
+          return;
         }
-      };
-
-      recognition.onerror = (ev) => {
-        setStatus('err');
-        log('Speech error: ' + ev.error, 'err');
-      };
-
-      recognition.onresult = (ev) => {
-        const res = ev.results[ev.results.length - 1][0].transcript.trim();
-        lastTranscript = res;
-        transcriptEl.textContent = 'Heard: "' + res + '"';
-        log('Heard: ' + res);
-        if(chkWakeReq.checked){
-          const lw = res.toLowerCase();
-          if(lw.includes('hey jarvis') || lw.includes('ok jarvis')){
-            const stripped = lw.replace(/^.*?(hey jarvis|ok jarvis)[, ]*/,'').trim();
-            if(stripped) handleCommand(stripped);
+      } else {
+        if(wakeWordOn){
+          if(lw.includes(wakeNormalized) || lw.includes('hey jarvis') || lw.includes('ok jarvis')){
+            // Strip wake phrase and handle remainder
+            let cmd = lw;
+            // Try to remove either the custom wake or common variants
+            if(customWake) cmd = cmd.replace(new RegExp(customWake, 'i'),'').trim();
+            cmd = cmd.replace(/^.*?(hey jarvis|ok jarvis)[, ]*/i,'').trim();
+            if(cmd) handleCommand(cmd);
             else { speak('Yes?'); }
             return;
-          } else {
-            log('Ignored — wake-word required', 'info');
-            return;
           }
-        } else {
-          if(wakeWordOn){
-            if(res.toLowerCase().includes('hey jarvis') || res.toLowerCase().includes('ok jarvis')){
-              speak('At your service.');
-              return;
-            }
-            if(res.toLowerCase().startsWith('hey jarvis')) {
-              const cmd = res.toLowerCase().replace(/^hey jarvis[, ]*/,'').trim();
-              if(cmd) handleCommand(cmd);
-              return;
-            }
-          }
-          handleCommand(res);
         }
-      };
+        handleCommand(res);
+      }
+    };
+  }
+
+  // Main command handler (keeps original behavior + extras)
+  async function handleCommand(textRaw){
+    const text = textRaw.trim();
+    if(!text) return;
+    // show in UI
+    addTranscriptEntry('User: ' + text);
+    const lower = text.toLowerCase();
+
+    // small talk
+    if(/^(hi|hello|hey|hey jarvis|ok jarvis)\b/.test(lower)){
+      speak('Hello. How can I help?');
+      addTranscriptEntry('Jarvis: greeting');
+      return;
     }
 
-    // -------- Main command handler --------
-    async function handleCommand(textRaw){
-      const text = textRaw.trim();
-      if(!text) return;
-      addTranscriptEntry('User: ' + text);
-      const lower = text.toLowerCase();
+    // time/date
+    if(lower.includes('time')) {
+      const now = new Date();
+      const out = `It is ${now.toLocaleTimeString()}`;
+      speak(out);
+      addTranscriptEntry('Jarvis: ' + out);
+      return;
+    }
+    if(lower.includes('date')) {
+      const now = new Date();
+      const out = `Today is ${now.toLocaleDateString()}`;
+      speak(out);
+      addTranscriptEntry('Jarvis: ' + out);
+      return;
+    }
 
-      // salutations
-      if(/^(hi|hello|hey|hey jarvis)\b/.test(lower)){
-        speak('Hello ' + (currentUserName() || '') + '. How can I assist?');
-        addTranscriptEntry('Jarvis: greeting');
+    // open website
+    if(lower.match(/\bopen (youtube|google|wikipedia|github|spotify|maps)\b/)) {
+      let site = 'https://google.com';
+      if(lower.includes('youtube')) site = 'https://youtube.com';
+      else if(lower.includes('wikipedia')) site = 'https://wikipedia.org';
+      else if(lower.includes('github')) site = 'https://github.com';
+      else if(lower.includes('spotify')) site = 'https://open.spotify.com';
+      else if(lower.includes('maps')) site = 'https://maps.google.com';
+      speak('Opening ' + site.replace(/^https?:\/\//,''));
+      window.open(site, '_blank');
+      addTranscriptEntry('Jarvis: opening ' + site);
+      return;
+    }
+
+    // search
+    if(lower.startsWith('search ') || lower.startsWith('google ')) {
+      const q = text.replace(/^(search|google)\s+/i,'').trim();
+      if(!q){ speak('What do you want me to search?'); return; }
+      speak('Searching Google for ' + q);
+      const url = 'https://www.google.com/search?q=' + encodeURIComponent(q);
+      window.open(url, '_blank');
+      addTranscriptEntry('Jarvis: searched for ' + q);
+      return;
+    }
+
+    // wiki
+    if(lower.startsWith('wiki ') || lower.startsWith('wikipedia ')) {
+      const term = text.replace(/^(wiki|wikipedia)\s+/i,'').trim();
+      if(!term){ speak('What do you want from Wikipedia?'); return; }
+      speak('Searching Wikipedia for ' + term);
+      addTranscriptEntry('Jarvis: fetching wikipedia for ' + term);
+      try {
+        const api = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(term);
+        const r = await fetch(api);
+        if(!r.ok) { speak('No Wikipedia page found for ' + term); return; }
+        const j = await r.json();
+        const extract = j.extract ? j.extract.split('. ').slice(0,2).join('. ') + '.' : 'No summary available.';
+        speak(extract);
+        addTranscriptEntry('Wiki: ' + extract);
+      } catch (e) {
+        speak('Failed to fetch Wikipedia.');
+        addTranscriptEntry('Wiki error: ' + e.message, 'err');
+      }
+      return;
+    }
+
+    // calculate
+    if(lower.startsWith('calculate ') || lower.startsWith('what is ') || /^[0-9\+\-\*\/\. ]+$/.test(lower)) {
+      const expr = text.replace(/^(calculate|what is)\s+/i,'').replace(/[^0-9+\-*/(). %]/g,'');
+      if(!expr){ speak('I could not parse the expression'); return; }
+      try {
+        const val = Function('"use strict";return (' + expr + ')')();
+        speak('The result is ' + val);
+        addTranscriptEntry('Calc: ' + expr + ' = ' + val);
+      } catch (e) {
+        speak('Sorry, cannot calculate that.');
+        addTranscriptEntry('Calc error: ' + e.message, 'err');
+      }
+      return;
+    }
+
+    // timer / reminder
+    if(lower.startsWith('set timer') || lower.startsWith('timer ')) {
+      const m = lower.match(/(\d+)\s*(seconds|second|minutes|minute|secs|mins)?/);
+      if(!m){ speak('Please tell me the time in seconds or minutes'); return; }
+      let num = parseInt(m[1],10);
+      let unit = (m[2]||'seconds').toLowerCase();
+      let ms = (unit.startsWith('min')) ? num * 60 * 1000 : num * 1000;
+      speak('Timer set for ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds'));
+      addTranscriptEntry('Timer: ' + num + ' ' + unit);
+      setTimeout(()=>{
+        speak('Timer finished: ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds'));
+        alert('Timer finished: ' + num + ' ' + unit);
+      }, ms);
+      return;
+    }
+
+    // play music -> spotify or youtube
+    if(lower.includes('play music') || lower.includes('play song') || lower.includes('play spotify')) {
+      speak('Opening Spotify playlist');
+      window.open('https://open.spotify.com', '_blank');
+      return;
+    }
+
+    // jokes
+    if(lower.includes('joke')) {
+      const j = jokes[Math.floor(Math.random()*jokes.length)];
+      speak(j);
+      addTranscriptEntry('Joke: ' + j);
+      return;
+    }
+
+    // motivational quote
+    if(lower.includes('motivate') || lower.includes('motivation') || lower.includes('quote')) {
+      const q = quotes[Math.floor(Math.random()*quotes.length)];
+      speak(q);
+      addTranscriptEntry('Quote: ' + q);
+      return;
+    }
+
+    // weather quick (uses wttr.in)
+    if(lower.includes('weather')) {
+      const m = lower.match(/weather in ([a-zA-Z\s]+)/);
+      const q = m ? m[1].trim() : '';
+      if(q) {
+        speak('Opening weather for ' + q);
+        window.open('https://wttr.in/' + encodeURIComponent(q), '_blank');
+      } else {
+        speak('Opening weather report');
+        window.open('https://wttr.in/?format=3', '_blank');
+      }
+      return;
+    }
+
+    // translate -> google translate
+    if(lower.startsWith('translate ')) {
+      const m = text.match(/^translate\s+(.+?)\s+to\s+([a-zA-Z\-]+)/i);
+      if(m){
+        const phrase = m[1]; const target = m[2];
+        speak('Translating to ' + target);
+        window.open('https://translate.google.com/?sl=auto&tl='+encodeURIComponent(target)+'&text='+encodeURIComponent(phrase)+'&op=translate', '_blank');
+        return;
+      } else {
+        speak('Opening Google Translate');
+        window.open('https://translate.google.com', '_blank');
         return;
       }
-      // time/date
-      if(lower.includes('time')) {
-        const now = new Date();
-        const out = `It is ${now.toLocaleTimeString()}`;
-        speak(out);
-        addTranscriptEntry('Jarvis: ' + out);
-        return;
-      }
-      if(lower.includes('date')) {
-        const now = new Date();
-        const out = `Today is ${now.toLocaleDateString()}`;
-        speak(out);
-        addTranscriptEntry('Jarvis: ' + out);
-        return;
-      }
-      // open website common
-      if(lower.match(/\bopen (youtube|google|wikipedia|github|spotify)\b/)) {
-        let site = 'https://google.com';
-        if(lower.includes('youtube')) site = 'https://youtube.com';
-        else if(lower.includes('wikipedia')) site = 'https://wikipedia.org';
-        else if(lower.includes('github')) site = 'https://github.com';
-        else if(lower.includes('spotify')) site = 'https://open.spotify.com';
-        speak('Opening ' + site.replace(/^https?:\/\//,''));
-        window.open(site, '_blank');
-        addTranscriptEntry('Jarvis: opening ' + site);
-        return;
-      }
-      // search
-      if(lower.startsWith('search ') || lower.startsWith('google ')) {
-        const q = text.replace(/^(search|google)\s+/i,'').trim();
-        if(!q){ speak('What shall I search?'); return; }
-        speak('Searching Google for ' + q);
-        const url = 'https://www.google.com/search?q=' + encodeURIComponent(q);
-        window.open(url, '_blank');
-        addTranscriptEntry('Jarvis: searched for ' + q);
-        return;
-      }
-      // wiki
-      if(lower.startsWith('wiki ') || lower.startsWith('wikipedia ')) {
-        const term = text.replace(/^(wiki|wikipedia)\s+/i,'').trim();
-        if(!term){ speak('What do you want from Wikipedia?'); return; }
-        speak('Fetching Wikipedia for ' + term);
-        addTranscriptEntry('Jarvis: wikipedia ' + term);
-        try {
-          const api = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(term);
-          const r = await fetch(api);
-          if(!r.ok) { speak('No Wikipedia page found for ' + term); return; }
-          const j = await r.json();
-          const extract = j.extract ? j.extract.split('. ').slice(0,2).join('. ') + '.' : 'No summary available.';
-          speak(extract);
-          addTranscriptEntry('Wiki: ' + extract);
-        } catch (e) {
-          speak('Failed to fetch Wikipedia.');
-          addTranscriptEntry('Wiki error: ' + e.message, 'err');
-        }
-        return;
-      }
-      // calculate
-      if(lower.startsWith('calculate ') || lower.startsWith('what is ') || /^[0-9\+\-\*\/\. ()%]+$/.test(lower)) {
-        const expr = text.replace(/^(calculate|what is)\s+/i,'').replace(/[^0-9+\-*/(). %]/g,'');
-        if(!expr){ speak('I could not parse the expression'); return; }
-        try {
-          const val = Function('"use strict";return (' + expr + ')')();
-          speak('The result is ' + val);
-          addTranscriptEntry('Calc: ' + expr + ' = ' + val);
-        } catch (e) {
-          speak('Sorry, cannot calculate that.');
-          addTranscriptEntry('Calc error: ' + e.message, 'err');
-        }
-        return;
-      }
-      // timer / reminder
-      if(lower.startsWith('set timer') || lower.startsWith('timer ')) {
-        const m = lower.match(/(\d+)\s*(seconds|second|minutes|minute|secs|mins)?/);
-        if(!m){ speak('Please tell me the time in seconds or minutes'); return; }
-        let num = parseInt(m[1],10);
-        let unit = (m[2]||'seconds').toLowerCase();
-        let ms = (unit.startsWith('min')) ? num * 60 * 1000 : num * 1000;
-        speak('Timer set for ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds'));
-        addTranscriptEntry('Timer: ' + num + ' ' + unit);
-        setTimeout(()=>{
-          speak('Timer finished: ' + num + ' ' + (unit.startsWith('min') ? 'minutes' : 'seconds'));
-          alert('Timer finished: ' + num + ' ' + unit);
-        }, ms);
-        return;
-      }
-      // music
-      if(lower.includes('play music') || lower.includes('play song') || lower.includes('play spotify')) {
-        speak('Opening Spotify');
-        window.open('https://open.spotify.com', '_blank');
-        return;
-      }
-      // jokes
-      if(lower.includes('joke')) {
-        const j = jokes[Math.floor(Math.random()*jokes.length)];
-        speak(j);
-        addTranscriptEntry('Joke: ' + j);
-        return;
-      }
-      // motivational quote
-      if(lower.includes('motivate') || lower.includes('motivation') || lower.includes('quote')) {
-        const q = quotes[Math.floor(Math.random()*quotes.length)];
-        speak(q);
-        addTranscriptEntry('Quote: ' + q);
-        return;
-      }
-      // weather
-      if(lower.includes('weather')) {
-        const m = lower.match(/weather in ([a-zA-Z\s]+)/);
-        const q = m ? m[1].trim() : '';
-        if(q) {
-          speak('Opening weather for ' + q);
-          window.open('https://wttr.in/' + encodeURIComponent(q), '_blank');
-        } else {
-          speak('Opening weather report');
-          window.open('https://wttr.in/?format=3', '_blank');
-        }
-        return;
-      }
-      // translate -> open google translate
-      if(lower.startsWith('translate ')) {
-        const m = text.match(/^translate\s+(.+?)\s+to\s+([a-zA-Z\-]+)/i);
-        if(m){
-          const phrase = m[1]; const target = m[2];
-          speak('Translating to ' + target);
-          window.open('https://translate.google.com/?sl=auto&tl='+encodeURIComponent(target)+'&text='+encodeURIComponent(phrase)+'&op=translate', '_blank');
-          return;
-        } else {
-          speak('Opening Google Translate');
-          window.open('https://translate.google.com', '_blank');
-          return;
-        }
-      }
-      // open URL
-      const openMatch = lower.match(/^open (https?:\/\/\S+|\S+\.\S{2,})$/);
-      if(openMatch) {
-        const target = openMatch[1].startsWith('http') ? openMatch[1] : 'https://' + openMatch[1];
-        speak('Opening ' + target);
-        window.open(target, '_blank');
-        return;
-      }
-      // stop listening / exit
-      if(lower.includes('stop listening') || lower === 'stop' || lower.includes('exit')) {
-        speak('Stopping voice recognition');
-        stopListening();
-        return;
-      }
-      // physics wallah quick
-      if(lower.includes("physics wallah") || lower.includes("open pw") || lower.includes("play pw")){
-        speak("Opening Physics Wallah");
-        try{ window.location.href = "intent://#Intent;package=in.eduwall.pwclassroom;scheme=pw;end"; }catch(_){}
-        setTimeout(()=> window.open("https://www.pw.live/", "_blank"), 800);
-        return;
-      }
-      // memory
-      if(lower.startsWith('remember ')){
-        const mem = text.replace(/^remember\s+/i,'').trim();
-        if(mem){
-          const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
-          mems.push({text:mem, time: Date.now()});
-          localStorage.setItem('jarvis_mems', JSON.stringify(mems));
-          speak('Saved that to memory.');
-          addTranscriptEntry('Memory saved: ' + mem);
-        } else speak('What should I remember?');
-        return;
-      }
-      if(lower.startsWith('what did i ask you to remember') || lower.startsWith('what do you remember') || lower.startsWith('list memories')){
+    }
+
+    // memory: remember / recall
+    if(lower.startsWith('remember ')){
+      const mem = text.replace(/^remember\s+/i,'').trim();
+      if(mem){
         const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
-        if(mems.length===0){ speak('You have no saved memories.'); return; }
-        speak('You asked me to remember '+ mems.length + ' items. Opening memory list.');
-        showMemories();
-        return;
-      }
-      // screenshot
-      if(lower.includes('screenshot') || lower.includes('screen shot') || lower.includes('capture screen')){
-        takeScreenshot();
-        return;
-      }
-      // self destruct (fixed)
-      if(lower.includes('self destruct')){
-        runSelfDestruct();
-        return;
-      }
-
-      // fallback: ask to search
-      speak('I did not understand. Do you want me to search the web for ' + text + '?');
-      if(confirm('Search web for "' + text + '"?')) {
-        window.open('https://www.google.com/search?q=' + encodeURIComponent(text), '_blank');
-      }
-    }
-
-    // -------- Transcript helper --------
-    function addTranscriptEntry(txt, type='sys'){
-      const p = document.createElement('div');
-      p.style.marginTop = '8px';
-      p.style.fontSize = '14px';
-      p.style.color = (type==='err' ? '#ffb3b3' : '#fff1e6');
-      p.textContent = txt;
-      transcriptEl.appendChild(p);
-      transcriptEl.scrollTop = transcriptEl.scrollHeight;
-    }
-
-    // -------- Controls events --------
-    btnStart.addEventListener('click', () => {
-      if(!recognition) setupRecognition();
-      if(recognition && !listening){
-        try { recognition.start(); } catch(e){ console.warn(e); }
-      }
-    });
-    btnStop.addEventListener('click', stopListening);
-
-    function stopListening(){
-      if(recognition){
-        try { recognition.stop(); } catch(e){}
-        listening = false;
-        setStatus('idle');
-        log('Stopped listening');
-      }
-    }
-
-    btnWake.addEventListener('click', ()=> {
-      wakeWordOn = !wakeWordOn;
-      wakeStateSpan.textContent = wakeWordOn ? 'On' : 'Off';
-      log('Wake-word announce ' + (wakeWordOn ? 'enabled' : 'disabled'));
-    });
-
-    btnToggleVoice.addEventListener('click', ()=> {
-      chkVoice.checked = !chkVoice.checked;
-      log('Voice reply ' + (chkVoice.checked ? 'enabled' : 'disabled'));
-    });
-
-    btnClearLog.addEventListener('click', ()=> { logEl.innerHTML=''; transcriptEl.innerHTML=''; });
-
-    chkContinuous.addEventListener('change', ()=>{
-      if(recognition){
-        recognition.stop();
-        recognition = null;
-        setupRecognition();
-      }
-      log('Continuous: ' + chkContinuous.checked);
-    });
-
-    langSelect.addEventListener('change', ()=> {
-      lang = langSelect.value;
-      langLabel.textContent = (lang==='hi-IN' ? 'Hindi (hi-IN)' : 'English (en-US)');
-      if(recognition){ recognition.lang = lang; }
-      log('Language set to ' + lang);
-    });
-
-    btnSend.addEventListener('click', ()=> {
-      const text = cmdInput.value.trim();
-      if(!text) return;
-      handleExtraCommand(text) || handleCommand(text);
-      cmdInput.value='';
-    });
-
-    cmdInput.addEventListener('keydown', (e)=> { if(e.key==='Enter') btnSend.click(); });
-
-    // current user name (back-compat, optional)
-    function currentUserName(){
-      const n = document.getElementById('username');
-      return n ? (n.value || '') : '';
-    }
-
-    // -------- Initial setup --------
-    function init(){
-      transcriptEl.textContent = 'Press Start Listening and speak. You can also type commands below.';
-      lang = langSelect.value;
-      setupRecognition();
-      log('Jarvis ready (enhanced)');
-      // attach quick cmd clicks
-      document.querySelectorAll('.cmd').forEach(c=>{
-        c.addEventListener('click', ()=> { const cmd = c.getAttribute('data-cmd'); handleExtraCommand(cmd) || handleCommand(cmd); });
-      });
-    }
-    init();
-
-    // -------- Small datasets --------
-    const jokes = [
-      "Why did the developer go broke? Because he used up all his cache.",
-      "Why do programmers prefer dark mode? Because the light attracts bugs.",
-      "I told my computer I needed a break, and it said — no problem, I'll go to sleep."
-    ];
-    const quotes = [
-      "The best time to plant a tree was 20 years ago. The second best time is now.",
-      "Don't watch the clock; do what it does. Keep going.",
-      "You don't have to be great to start, but you have to start to be great."
-    ];
-
-    // -------- Extra features: utilities, camera, flashlight, restart, power off, battery, screenshot, news, spotify, games, memory UI --------
-
-    // Utility dock click -> command
-    document.querySelectorAll('.util').forEach(card=>{
-      card.addEventListener('click', ()=>{
-        const c = card.getAttribute('data-cmd');
-        handleExtraCommand(c);
-      });
-    });
-
-    // EXTRA: button-driven actions
-    btnWeather.addEventListener('click', ()=> { handleExtraCommand('weather'); });
-    btnNews.addEventListener('click', ()=> { handleExtraCommand('news'); });
-    btnQuote.addEventListener('click', ()=> { handleExtraCommand('motivate'); });
-    btnSpotify.addEventListener('click', ()=> { handleExtraCommand('play spotify'); });
-    btnTranslate.addEventListener('click', ()=> {
-      const phrase = prompt('Phrase to translate (will open Google Translate):');
-      if(phrase) window.open('https://translate.google.com/?sl=auto&tl=en&text=' + encodeURIComponent(phrase) + '&op=translate', '_blank');
-    });
-    btnScreenshot.addEventListener('click', takeScreenshot);
-    btnSelfDestruct.addEventListener('click', ()=> { runSelfDestruct(); });
-
-    btnRPS.addEventListener('click', ()=> { playRPS(); });
-    btnGuess.addEventListener('click', ()=> { playGuess(); });
-
-    // memory buttons
-    btnSaveMemory.addEventListener('click', ()=>{
-      const txt = prompt('What should I remember?');
-      if(txt){
-        const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
-        mems.push({text:txt, time: Date.now()});
+        mems.push({text:mem, time: Date.now()});
         localStorage.setItem('jarvis_mems', JSON.stringify(mems));
-        speak('Saved that memory.');
-        log('Memory saved: ' + txt);
-      }
-    });
-    btnShowMemory.addEventListener('click', showMemories);
-
-    function showMemories(){
+        speak('Done. I will remember: ' + mem);
+        addTranscriptEntry('Memory saved: ' + mem);
+        renderMemories();
+      } else speak('What should I remember?');
+      return;
+    }
+    if(lower.includes('what do you remember') || lower.includes('list memories') || lower.includes('what did i ask you to remember')){
       const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
-      if(mems.length===0){ alert('No memories saved.'); return; }
-      const list = mems.map((m,i)=> (i+1)+'. '+m.text + ' ('+ new Date(m.time).toLocaleString() +')').join('\n\n');
-      alert('Memories:\n\n' + list);
+      if(mems.length===0){ speak('You have no saved memories.'); return; }
+      speak('You asked me to remember '+ mems.length + ' items. I will show them now.');
+      renderMemories(true);
+      return;
     }
 
-    // CAMERA & flashlight
-    async function openCamera(){
-      try{
-        cameraOverlay.style.display='flex';
-        if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-        camStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: usingBackCam ? {ideal:'environment'} : 'user' },
-          audio: false
-        });
-        camVideo.srcObject = camStream;
-        log('Camera opened');
-      }catch(e){
-        log('Camera error: ' + e.message, 'err');
-        alert('Camera permission or device error.');
-      }
-    }
-    function closeCamera(){
-      cameraOverlay.style.display='none';
-      if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-      log('Camera closed');
-    }
-    btnCloseCamera.addEventListener('click', closeCamera);
-    btnSwitchCamera.addEventListener('click', async ()=>{
-      usingBackCam = !usingBackCam;
-      await openCamera();
-    });
-
-    function flashlight(on){
-      flashlightOverlay.style.display = on ? 'flex' : 'none';
-      flashlightOverlay.style.background = on ? '#ffffff' : 'transparent';
-      log('Flashlight ' + (on ? 'on' : 'off'));
+    // screenshot
+    if(lower.includes('screenshot') || lower.includes('screen shot') || lower.includes('capture screen')){
+      takeScreenshot();
+      return;
     }
 
-    // battery status
-    async function batteryStatus(){
-      try{
-        if(!('getBattery' in navigator)){ alert('Battery API not supported'); return; }
-        const b = await navigator.getBattery();
-        const pct = Math.round(b.level*100);
-        const ch = b.charging ? 'charging' : 'not charging';
-        alert(`Battery: ${pct}% (${ch})`);
-        log(`Battery status: ${pct}% (${ch})`);
-      }catch(e){ log('Battery error: '+e.message, 'err'); }
+    // power actions (simulated)
+    if(lower.includes('power off') || lower.includes('shutdown')){
+      powerOffAnimation();
+      return;
+    }
+    if(lower.includes('restart')){
+      restartAnimation();
+      return;
     }
 
-    function deviceInfo(){
-      const ua = navigator.userAgent;
-      const plat = navigator.platform;
-      const lang = navigator.language;
-      const info = `UA: ${ua}\nPlatform: ${plat}\nLanguage: ${lang}`;
-      alert(info);
-      log('Device info shown');
+    // flashlight
+    if(lower.includes('flashlight on') || lower.includes('torch on')){
+      flashlight(true);
+      return;
+    }
+    if(lower.includes('flashlight off') || lower.includes('torch off')){
+      flashlight(false);
+      return;
     }
 
-    // wake lock (keep screen on)
-    let wakeLock = null;
-    async function keepScreenOn(){
-      try{
-        if('wakeLock' in navigator){
-          wakeLock = await navigator.wakeLock.request('screen');
-          log('Wake Lock active (screen on)');
-          window.addEventListener('visibilitychange', async ()=>{
-            if(document.visibilityState === 'visible' && wakeLock === null){
-              try{ wakeLock = await navigator.wakeLock.request('screen'); }catch(_){}
-            }
-          });
-        } else {
-          alert('Wake Lock API not supported in this browser');
-        }
-      }catch(e){ log('Wake Lock error: '+e.message); }
+    // camera
+    if(lower.includes('open camera') || lower.includes('show camera')){
+      openCamera();
+      return;
     }
-    function allowSleep(){
-      if(wakeLock){ try{ wakeLock.release(); }catch(_){} wakeLock=null; log('Wake Lock released'); }
+    if(lower.includes('close camera') || lower.includes('hide camera')){
+      closeCamera();
+      return;
+    }
+
+    // whatsapp/gallery
+    if(lower.includes('whatsapp')){
+      openWhatsApp();
+      return;
+    }
+    if(lower.includes('gallery')){
+      openGallery();
+      return;
+    }
+
+    // keep screen on
+    if(lower.includes('keep screen on') || lower.includes('stay awake')){
+      keepScreenOn();
+      return;
+    }
+    if(lower.includes('allow sleep') || lower.includes('allow to sleep')){
+      allowSleep();
+      return;
     }
 
     // vibrate
-    function vibrate(){
-      if('vibrate' in navigator){
-        navigator.vibrate([60,40,60,40,120]);
-        log('Vibration pattern played');
-      } else {
-        alert('Vibration not supported on this device');
-      }
+    if(lower.includes('vibrate')){
+      vibrate();
+      return;
     }
 
-    // lock/unlock screen (UI only)
-    function lockScreen(){
-      lockOverlay.style.display='flex';
-      log('Screen locked (UI)');
+    // lock/unlock
+    if(lower.includes('lock screen')){
+      lockScreen();
+      return;
     }
-    function unlockScreen(){
-      lockOverlay.style.display='none';
-      log('Screen unlocked (UI)');
-    }
-    unlockBtn.addEventListener('click', unlockScreen);
-
-    // open whatsapp + gallery
-    function openWhatsApp(){
-      try{
-        window.location.href = "intent://send/#Intent;scheme=whatsapp;package=com.whatsapp;end";
-        setTimeout(()=>window.open('https://web.whatsapp.com', '_blank'), 800);
-      }catch(_){
-        window.open('https://web.whatsapp.com', '_blank');
-      }
-      log('WhatsApp request');
-    }
-    function openGallery(){
-      window.open('https://photos.google.com', '_blank');
-      log('Gallery opened');
+    if(lower.includes('unlock screen')){
+      unlockScreen();
+      return;
     }
 
-    // Power off / restart (UI simulation)
-    function powerOffAnimation(){
-      powerOverlay.style.display = 'flex';
-      restartText.textContent = 'Powering off...';
-      setTimeout(()=> { document.body.style.filter='brightness(0)'; }, 600);
-      log('Simulated power off');
-    }
-    function restartAnimation(){
-      powerOverlay.style.display = 'flex';
-      restartText.textContent = 'Restarting...';
-      setTimeout(()=> { document.body.style.filter='brightness(0)'; }, 600);
-      setTimeout(()=> {
-        document.body.style.filter='';
-        powerOverlay.style.display='none';
-        log('Simulated restart finished');
-      }, 3200);
-      log('Simulated restart');
+    // news
+    if(lower.includes('news') || lower.includes('top news')){
+      openNews();
+      return;
     }
 
-    // Screenshot using html2canvas (load dynamically)
-    async function takeScreenshot(){
-      if(typeof html2canvas === 'undefined'){
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-      }
-      try{
-        speak('Taking screenshot');
-        const node = document.documentElement;
-        const canvas = await html2canvas(node, { logging:false, useCORS:true, scale:1 });
-        const url = canvas.toDataURL('image/png');
-        const a = document.createElement('a');
-        a.href = url; a.download = 'screenshot.png'; document.body.appendChild(a); a.click(); a.remove();
-        log('Screenshot taken & downloaded');
-      }catch(e){ log('Screenshot failed: '+ e.message, 'err'); alert('Screenshot failed: ' + e.message); }
+    // spotify
+    if(lower.includes('spotify') && lower.includes('play')){
+      window.open('https://open.spotify.com', '_blank');
+      return;
     }
 
-    // News - open Google News search
-    function openNews(){
-      speak('Opening top news');
-      window.open('https://news.google.com/topstories?hl=en-US&gl=US&ceid=US:en', '_blank');
+    // physics wallah (special)
+    if(lower.includes("physics wallah") || lower.includes("open pw") || lower.includes("play pw")){
+      speak("Opening Physics Wallah");
+      try{ window.location.href = "intent://#Intent;package=in.eduwall.pwclassroom;scheme=pw;end"; }catch(_){}
+      setTimeout(()=> window.open("https://www.pw.live/", "_blank"), 800);
+      return;
     }
 
-    // -------- Self-destruct: robust sequence --------
-    // Smooth countdown, HUD, vibration, audio beeps, particle boom, flash, auto-cleanup.
-    let sdRunning = false;
-    function runSelfDestruct(){
-      if(sdRunning) return;
-      sdRunning = true;
-      try{
-        selfDestructSequence().finally(()=>{ sdRunning = false; });
-      }catch(e){
-        sdRunning = false;
-        log('Self-destruct failed: ' + e.message, 'err');
-      }
+    // fallback: ask to search
+    speak('I did not understand. Do you want me to search the web for ' + text + '?');
+    if(confirm('Search web for "' + text + '"?')) {
+      window.open('https://www.google.com/search?q=' + encodeURIComponent(text), '_blank');
     }
+  }
 
-    async function selfDestructSequence(){
-      // 1) Prepare HUD
-      hudOverlay.style.display = 'flex';
-      hudCountdown.textContent = '3';
-      speak('Self destruct in three...');
+  // Transcript helper
+  function addTranscriptEntry(txt, type='sys'){
+    const p = document.createElement('div');
+    p.style.marginTop = '8px';
+    p.style.fontSize = '14px';
+    p.style.color = (type==='err' ? '#ffb3b3' : '#dbeafe');
+    p.textContent = txt;
+    transcriptEl.appendChild(p);
+    transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  }
 
-      // haptics
-      try{ navigator.vibrate && navigator.vibrate([80,60,80]); }catch(_){}
-
-      // 2) Start beep engine
-      const audio = await makeBeepEngine();
-
-      // 3) Countdown ticks
-      await tick(100); // tiny pause
-      await countdownStep(3, audio);
-      await countdownStep(2, audio);
-      await countdownStep(1, audio);
-
-      // 4) FLASH + BOOM
-      await flashScreen();
-      await playBoom(audio);
-      await particlesBoom(); // draws + waits
-      await sleep(1100);
-
-      // 5) Cleanup
-      hudOverlay.style.display='none';
-      boomCanvas.style.display='none';
-      // final speak
-      speak('Sequence completed.');
-      log('Self-destruct animation done');
+  // Controls events
+  btnStart.addEventListener('click', () => {
+    if(!recognition) setupRecognition();
+    if(recognition && !listening){
+      try { recognition.start(); } catch(e){ console.warn(e); }
     }
+  });
+  btnStop.addEventListener('click', stopListening);
 
-    function sleep(ms){ return new Promise(res=>setTimeout(res,ms)); }
-    function tick(ms){ return sleep(ms); }
+  btnWake.addEventListener('click', ()=> {
+    wakeWordOn = !wakeWordOn;
+    wakeStateSpan.textContent = wakeWordOn ? 'On' : 'Off';
+    log('Wake-word announce ' + (wakeWordOn ? 'enabled' : 'disabled'));
+  });
 
-    async function countdownStep(n, audio){
-      hudCountdown.textContent = String(n);
-      // Color tint intensity
-      hudOverlay.style.background = `radial-gradient(600px 400px at 50% 50%, rgba(239,68,68,${0.18+0.2*(4-n)}), transparent 60%)`;
-      try{ await audio.beep(440 + (3-n)*60, 280); }catch(_){}
-      await sleep(700);
-      if(n===1){ speak('One.'); } else if(n===2){ speak('Two.'); } else { speak('Three.'); }
+  btnToggleVoice.addEventListener('click', ()=> {
+    chkVoice.checked = !chkVoice.checked;
+    log('Voice reply ' + (chkVoice.checked ? 'enabled' : 'disabled'));
+  });
+
+  btnClearLog.addEventListener('click', ()=> { logEl.innerHTML=''; transcriptEl.innerHTML=''; });
+
+  chkContinuous.addEventListener('change', ()=>{
+    if(recognition){
+      recognition.stop();
+      recognition = null;
+      setupRecognition();
     }
+    log('Continuous: ' + chkContinuous.checked);
+  });
 
-    function flashScreen(){
-      return new Promise(res=>{
-        const el = document.createElement('div');
-        el.style.position='fixed'; el.style.inset='0';
-        el.style.background='rgba(255,255,255,1)';
-        el.style.zIndex='11002'; el.style.pointerEvents='none';
-        document.body.appendChild(el);
-        // haptics
-        try{ navigator.vibrate && navigator.vibrate([200,50,200]); }catch(_){}
-        // fade quickly
-        let op = 1;
-        const id = setInterval(()=>{
-          op -= 0.12;
-          if(op<=0){ clearInterval(id); el.remove(); res(); }
-          else el.style.opacity = String(op);
-        }, 20);
-      });
+  langSelect.addEventListener('change', ()=> {
+    lang = langSelect.value;
+    langLabel.textContent = (lang==='hi-IN' ? 'Hindi (hi-IN)' : 'English (en-US)');
+    if(recognition){
+      recognition.lang = lang;
     }
+    log('Language set to ' + lang);
+  });
 
-    async function playBoom(audio){
-      try{
-        // Create a short bassy sweep boom
-        await audio.sweep({ from: 120, to: 40, time: 0.5, type:'sawtooth', gain:0.6 });
-        await audio.noise({ time: 0.35, gain:0.45 }); // noise burst
-      }catch(_){}
+  voiceSelect.addEventListener('change', ()=> {
+    localStorage.setItem('jarvis_voice_index', voiceSelect.value);
+  });
+
+  btnSend.addEventListener('click', ()=> {
+    const text = cmdInput.value.trim();
+    if(!text) return;
+    // first run extra handlers (add-ons) — they can intercept
+    if(!handleExtraCommand(text)) handleCommand(text);
+    cmdInput.value='';
+  });
+
+  cmdInput.addEventListener('keydown', (e)=> { if(e.key==='Enter') btnSend.click(); });
+
+  function stopListening(){
+    if(recognition){
+      try { recognition.stop(); } catch(e){}
+      listening = false;
+      listenStatus.textContent = 'Idle';
+      log('Stopped listening');
     }
+    stopVoiceMeter();
+  }
 
-    async function particlesBoom(){
-      const c = boomCanvas;
-      c.width = window.innerWidth; c.height = window.innerHeight; c.style.display='block';
+  // initial setup
+  function init(){
+    transcriptEl.textContent = 'Press Start Listening and speak. You can also type commands below.';
+    lang = langSelect.value;
+    if(!customWake) customWake = 'hey jarvis';
+    wakeInput.value = customWake;
+    if(faceDataUrl) {
+      faceStatus.textContent = 'Face enrolled';
+      renderFacePreview(faceDataUrl);
+    }
+    populateVoices();
+    renderMemories();
+    setupRecognition();
+    log('Jarvis ready (enhanced)');
+    document.querySelectorAll('.cmd').forEach(c=>{
+      c.addEventListener('click', ()=> { const cmd = c.getAttribute('data-cmd'); if(!handleExtraCommand(cmd)) handleCommand(cmd); });
+    });
+  }
+
+  init();
+
+  // ========================
+  // Extra feature functions
+  // ========================
+
+  // Utility dock click -> command
+  document.querySelectorAll('.util').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const c = card.getAttribute('data-cmd');
+      if(!handleExtraCommand(c)) handleCommand(c);
+    });
+  });
+
+  // Buttons
+  btnWeather.addEventListener('click', ()=> { handleExtraCommand('weather'); });
+  btnNews.addEventListener('click', ()=> { handleExtraCommand('news'); });
+  btnQuote.addEventListener('click', ()=> { handleExtraCommand('motivate'); });
+  btnSpotify.addEventListener('click', ()=> { handleExtraCommand('play spotify'); });
+  btnTranslate.addEventListener('click', ()=> {
+    const phrase = prompt('Phrase to translate (will open Google Translate):');
+    if(phrase) window.open('https://translate.google.com/?sl=auto&tl=en&text=' + encodeURIComponent(phrase) + '&op=translate', '_blank');
+  });
+  btnScreenshot.addEventListener('click', takeScreenshot);
+  btnSelfDestruct.addEventListener('click', ()=> { runSelfDestruct(); });
+
+  btnRPS.addEventListener('click', ()=> { playRPS(); });
+  btnGuess.addEventListener('click', ()=> { playGuess(); });
+
+  btnSaveMemory.addEventListener('click', ()=>{
+    const txt = prompt('What should I remember?');
+    if(txt){
+      const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
+      mems.push({text:txt, time: Date.now()});
+      localStorage.setItem('jarvis_mems', JSON.stringify(mems));
+      speak('Saved that memory.');
+      log('Memory saved: ' + txt);
+      renderMemories();
+    }
+  });
+  btnShowMemory.addEventListener('click', showMemories);
+
+  memAdd.addEventListener('click', ()=>{
+    const t = memInput.value.trim();
+    if(!t) return;
+    const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
+    mems.push({text:t, time: Date.now()});
+    localStorage.setItem('jarvis_mems', JSON.stringify(mems));
+    memInput.value='';
+    renderMemories();
+    speak('Memory added.');
+  });
+
+  btnSaveWake.addEventListener('click', ()=>{
+    const w = wakeInput.value.trim();
+    if(!w) return alert('Enter wake phrase');
+    customWake = w;
+    localStorage.setItem('jarvis_wake', w);
+    speak('Custom wake phrase saved as ' + w);
+    log('Custom wake phrase: ' + w);
+  });
+
+  // Face capture (enroll simple snapshot)
+  btnFaceCapture.addEventListener('click', async ()=>{
+    try{
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Camera not supported');
+      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio:false });
+      const v = document.createElement('video');
+      v.style.display = 'none';
+      v.srcObject = s;
+      document.body.appendChild(v);
+      await v.play();
+      await new Promise(r=>setTimeout(r,500));
+      const c = document.createElement('canvas');
+      c.width = v.videoWidth || 320;
+      c.height = v.videoHeight || 240;
       const ctx = c.getContext('2d');
+      ctx.drawImage(v,0,0,c.width,c.height);
+      const data = c.toDataURL('image/png');
+      localStorage.setItem('jarvis_face', data);
+      faceDataUrl = data;
+      renderFacePreview(data);
+      faceStatus.textContent = 'Face enrolled';
+      speak('Face captured and enrolled.');
+      // stop tracks
+      s.getTracks().forEach(t=>t.stop());
+      v.remove();
+    }catch(e){
+      alert('Face capture failed: ' + e.message);
+      log('Face capture error: ' + e.message, 'err');
+    }
+  });
 
-      // create a radial burst of glowing particles
-      const cx = c.width/2, cy = c.height/2;
-      const particles = [];
-      const N = 160;
-      for(let i=0;i<N;i++){
-        const angle = (i/N)*Math.PI*2 + (Math.random()*0.2);
-        const speed = 4 + Math.random()*8;
-        const vx = Math.cos(angle)*speed;
-        const vy = Math.sin(angle)*speed;
-        particles.push({
-          x: cx, y: cy,
-          vx, vy,
-          r: 2 + Math.random()*3.5,
-          life: 60 + Math.random()*60,
-          hue: 10 + Math.random()*30,   // orange-ish
-          g: 0.10 + Math.random()*0.08, // fake gravity
-          drag: 0.98 + Math.random()*0.015
-        });
+  // Face login (very simple compare by pixel diff)
+  btnFaceLogin.addEventListener('click', async ()=>{
+    if(!faceDataUrl) return alert('No face enrolled. Capture first.');
+    try{
+      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio:false });
+      const v = document.createElement('video');
+      v.style.display = 'none';
+      v.srcObject = s;
+      document.body.appendChild(v);
+      await v.play();
+      await new Promise(r=>setTimeout(r,500));
+      const c = document.createElement('canvas');
+      c.width = v.videoWidth || 320;
+      c.height = v.videoHeight || 240;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(v,0,0,c.width,c.height);
+      const current = c.toDataURL('image/png');
+      s.getTracks().forEach(t=>t.stop());
+      v.remove();
+      // compare simple: create image elements and compare data lengths / naive pixel comparison
+      const diff = await computeImageDiff(faceDataUrl, current);
+      if(diff < 0.12){ // threshold low -> very close
+        speak('Face matched. Welcome back.');
+        log('Face login successful (diff ' + diff.toFixed(3) + ')');
+        document.body.style.border = '6px solid rgba(34,197,94,0.25)';
+        setTimeout(()=> document.body.style.border = '', 2500);
+      } else {
+        speak('Face did not match.');
+        log('Face login failed (diff ' + diff.toFixed(3) + ')', 'err');
+        alert('Face did not match. Try enrolling again.');
       }
+    }catch(e){
+      alert('Face login failed: ' + e.message);
+    }
+  });
 
-      // ring shockwave
-      let ringR = 0;
-      let ringA = 0.6;
+  function renderFacePreview(data){
+    facePreview.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = data;
+    img.style.maxWidth = '120px';
+    img.style.borderRadius = '8px';
+    facePreview.appendChild(img);
+  }
 
-      return new Promise(res=>{
-        let t = 0;
-        const id = setInterval(()=>{
-          t++;
+  // compute naive difference between two base64 png images by drawing and comparing pixel data (normalized)
+  async function computeImageDiff(aDataUrl, bDataUrl){
+    function loadImage(src){ return new Promise((res,rej)=>{ const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
+    const [ia, ib] = await Promise.all([loadImage(aDataUrl), loadImage(bDataUrl)]);
+    const w = Math.min(ia.width, ib.width, 160);
+    const h = Math.min(ia.height, ib.height, 120);
+    const ca = document.createElement('canvas'); ca.width=w; ca.height=h; const cta = ca.getContext('2d'); cta.drawImage(ia,0,0,w,h);
+    const cb = document.createElement('canvas'); cb.width=w; cb.height=h; const ctb = cb.getContext('2d'); ctb.drawImage(ib,0,0,w,h);
+    const da = cta.getImageData(0,0,w,h).data;
+    const db = ctb.getImageData(0,0,w,h).data;
+    let sum=0; let len=0;
+    for(let i=0;i<da.length;i+=4){
+      // compare luminance
+      const la = 0.299*da[i] + 0.587*da[i+1] + 0.114*da[i+2];
+      const lb = 0.299*db[i] + 0.587*db[i+1] + 0.114*db[i+2];
+      sum += Math.abs(la-lb);
+      len++;
+    }
+    const avg = sum / (len*255);
+    return avg; // 0..1 (lower is better)
+  }
 
-          // fade background
-          ctx.fillStyle = 'rgba(0,0,0,0.20)';
-          ctx.fillRect(0,0,c.width,c.height);
+  // MEMORIES rendering
+  function renderMemories(){
+    const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
+    memList.innerHTML = '';
+    if(mems.length===0){ memList.textContent = 'No memories saved'; return; }
+    mems.slice().reverse().forEach((m,i)=>{
+      const d = document.createElement('div');
+      d.style.padding = '6px'; d.style.borderBottom = '1px dashed rgba(255,255,255,0.03)';
+      d.innerHTML = `<strong style="color:#9ae6b4">${new Date(m.time).toLocaleString()}</strong><div style="margin-top:4px">${escapeHtml(m.text)}</div><div style="margin-top:6px"><button data-i="${mems.length-1-i}" class="mem-del smallbtn">Delete</button></div>`;
+      memList.appendChild(d);
+    });
+    memList.querySelectorAll('.mem-del').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const idx = parseInt(btn.getAttribute('data-i'),10);
+        const mm = JSON.parse(localStorage.getItem('jarvis_mems')||'[]');
+        mm.splice(idx,1);
+        localStorage.setItem('jarvis_mems', JSON.stringify(mm));
+        renderMemories();
+        speak('Memory deleted');
+      });
+    });
+  }
+  function showMemories(){ renderMemories(); alert('Memories shown on the right panel.'); }
 
-          // shock ring
-          ringR += 15;
-          ringA *= 0.98;
-          ctx.beginPath();
-          ctx.arc(cx, cy, ringR, 0, Math.PI*2);
-          ctx.strokeStyle = `rgba(249,115,22,${Math.max(0,ringA)})`;
-          ctx.lineWidth = 6;
-          ctx.stroke();
+  // CAMERA & flashlight
+  async function openCamera(){
+    try{
+      cameraOverlay.style.display='flex';
+      if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+      camStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: usingBackCam ? {ideal:'environment'} : 'user' },
+        audio: false
+      });
+      camVideo.srcObject = camStream;
+      log('Camera opened');
+    }catch(e){
+      log('Camera error: ' + e.message, 'err');
+      alert('Camera permission or device error.');
+    }
+  }
+  function closeCamera(){
+    cameraOverlay.style.display='none';
+    if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+    log('Camera closed');
+  }
+  btnCloseCamera.addEventListener('click', closeCamera);
+  btnSwitchCamera.addEventListener('click', async ()=>{
+    usingBackCam = !usingBackCam;
+    await openCamera();
+  });
+  btnCameraSnap.addEventListener('click', ()=>{
+    if(!camStream) return;
+    const v = camVideo;
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+    const url = c.toDataURL('image/png');
+    const a = document.createElement('a'); a.href = url; a.download='cam-snap.png'; a.click();
+    log('Camera snapshot taken');
+    speak('Snapshot saved');
+  });
 
-          // particles
-          for(let p of particles){
-            p.x += p.vx; p.y += p.vy;
-            p.vx *= p.drag; p.vy = p.vy*p.drag + p.g;
-            p.life--;
+  function flashlight(on){
+    flashlightOverlay.style.display = on ? 'flex' : 'none';
+    if(on) flashlightOverlay.style.background = '#ffffff';
+    else flashlightOverlay.style.background = 'transparent';
+    log('Flashlight ' + (on ? 'on' : 'off'));
+  }
 
-            const a = Math.max(0, p.life/120);
-            ctx.beginPath();
-            ctx.fillStyle = `hsla(${p.hue}, 95%, 60%, ${a})`;
-            ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+  // battery status
+  async function batteryStatus(){
+    try{
+      if(!('getBattery' in navigator)){ alert('Battery API not supported'); return; }
+      const b = await navigator.getBattery();
+      const pct = Math.round(b.level*100);
+      const ch = b.charging ? 'charging' : 'not charging';
+      alert(`Battery: ${pct}% (${ch})`);
+      log(`Battery status: ${pct}% (${ch})`);
+    }catch(e){ log('Battery error: '+e.message, 'err'); }
+  }
 
-            // trail
-            ctx.beginPath();
-            ctx.strokeStyle = `hsla(${p.hue}, 95%, 60%, ${a*0.6})`;
-            ctx.moveTo(p.x - p.vx*2, p.y - p.vy*2);
-            ctx.lineTo(p.x, p.y);
-            ctx.stroke();
+  function deviceInfo(){
+    const ua = navigator.userAgent;
+    const plat = navigator.platform;
+    const lang = navigator.language;
+    const info = `UA: ${ua}\nPlatform: ${plat}\nLanguage: ${lang}`;
+    alert(info);
+    log('Device info shown');
+  }
+
+  // wake lock (keep screen on)
+  let wakeLock = null;
+  async function keepScreenOn(){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+        log('Wake Lock active (screen on)');
+        window.addEventListener('visibilitychange', async ()=>{
+          if(document.visibilityState === 'visible' && wakeLock === null){
+            try{ wakeLock = await navigator.wakeLock.request('screen'); }catch(_){}
           }
+        });
+      } else {
+        alert('Wake Lock API not supported in this browser');
+      }
+    }catch(e){ log('Wake Lock error: '+e.message); }
+  }
+  function allowSleep(){
+    if(wakeLock){ try{ wakeLock.release(); }catch(_){} wakeLock=null; log('Wake Lock released'); }
+  }
 
-          // end condition
-          if(t>160){
-            clearInterval(id);
-            res();
-          }
-        }, 16);
+  // vibrate
+  function vibrate(){
+    if('vibrate' in navigator){
+      navigator.vibrate([60,40,60,40,120]);
+      log('Vibration pattern played');
+    } else {
+      alert('Vibration not supported on this device');
+    }
+  }
+
+  // lock/unlock UI
+  function lockScreen(){
+    lockOverlay.style.display='flex';
+    log('Screen locked (UI)');
+  }
+  function unlockScreen(){
+    lockOverlay.style.display='none';
+    log('Screen unlocked (UI)');
+  }
+  unlockBtn.addEventListener('click', unlockScreen);
+
+  // open whatsapp
+  function openWhatsApp(){
+    try{ window.location.href = "intent://send/#Intent;scheme=whatsapp;package=com.whatsapp;end"; setTimeout(()=>window.open('https://web.whatsapp.com', '_blank'), 800); }catch(_){ window.open('https://web.whatsapp.com', '_blank'); }
+    log('WhatsApp request');
+  }
+  function openGallery(){ window.open('https://photos.google.com', '_blank'); log('Gallery opened'); }
+
+  // Power off / restart (UI simulation)
+  function powerOffAnimation(){
+    powerOverlay.style.display = 'flex';
+    restartText.textContent = 'Powering off...';
+    setTimeout(()=> { document.body.style.filter='brightness(0)'; }, 600);
+    log('Simulated power off');
+  }
+  function restartAnimation(){
+    powerOverlay.style.display = 'flex';
+    restartText.textContent = 'Restarting...';
+    setTimeout(()=> { document.body.style.filter='brightness(0)'; }, 600);
+    setTimeout(()=> {
+      document.body.style.filter='';
+      powerOverlay.style.display='none';
+      log('Simulated restart finished');
+    }, 3200);
+    log('Simulated restart');
+  }
+
+  // Screenshot using html2canvas (load dynamically)
+  async function takeScreenshot(){
+    if(typeof html2canvas === 'undefined'){
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    }
+    try{
+      speak('Taking screenshot');
+      const node = document.documentElement;
+      const canvas = await html2canvas(node, { logging:false, useCORS:true, scale:1 });
+      const url = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = url; a.download = 'screenshot.png'; document.body.appendChild(a); a.click(); a.remove();
+      log('Screenshot taken & downloaded');
+    }catch(e){ log('Screenshot failed: '+ e.message, 'err'); alert('Screenshot failed: ' + e.message); }
+  }
+
+  // News - open Google News search
+  function openNews(){
+    speak('Opening top news');
+    window.open('https://news.google.com/topstories?hl=en-US&gl=US&ceid=US:en', '_blank');
+  }
+
+  // Self destruct effect using better canvas animation
+  function runSelfDestruct(){
+    const c = boomCanvas;
+    c.width = window.innerWidth; c.height = window.innerHeight; c.style.display='block';
+    const ctx = c.getContext('2d');
+    const sparks = [];
+    for(let i=0;i<220;i++){
+      sparks.push({
+        x: window.innerWidth/2 + (Math.random()-0.5)*200,
+        y: window.innerHeight/2 + (Math.random()-0.5)*200,
+        vx: (Math.random()-0.5)*14,
+        vy: (Math.random()-0.9)*14 - 4,
+        r: Math.random()*6+2,
+        life: Math.random()*100+40,
+        color: `rgba(${200+Math.floor(Math.random()*55)},${Math.floor(Math.random()*140)},0,`
       });
     }
+    let t=0;
+    speak('Self destruct in 3... 2... 1...');
+    // screen shake
+    const orig = document.body.style.transform || '';
+    let id = setInterval(()=>{
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillRect(0,0,c.width,c.height);
+      sparks.forEach(p=>{
+        p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.life--;
+        ctx.beginPath();
+        ctx.fillStyle = p.color + (p.life/140) + ')';
+        ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      });
+      t++;
+      if(t%6===0) document.body.style.transform = `translate(${(Math.random()-0.5)*8}px, ${(Math.random()-0.5)*8}px)`;
+      if(t>160){ clearInterval(id); ctx.clearRect(0,0,c.width,c.height); c.style.display='none'; document.body.style.transform = orig; log('Self-destruct animation done'); }
+    }, 16);
+  }
 
-    // Simple WebAudio engine
-    async function makeBeepEngine(){
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      const ctx = new Ctx();
-      const master = ctx.createGain();
-      master.gain.value = 0.15;
-      master.connect(ctx.destination);
+  // quick games
+  function playRPS(){
+    const choices = ['rock','paper','scissors'];
+    const user = prompt('Choose rock, paper or scissors:');
+    if(!user) return;
+    const u = user.toLowerCase();
+    if(!choices.includes(u)){ alert('Invalid choice'); return; }
+    const bot = choices[Math.floor(Math.random()*3)];
+    let res='Draw';
+    if((u==='rock'&&bot==='scissors')||(u==='paper'&&bot==='rock')||(u==='scissors'&&bot==='paper')) res='You win!';
+    else if(u===bot) res='Draw';
+    else res='You lose!';
+    speak(`You chose ${u}. I chose ${bot}. ${res}`);
+    alert(`You: ${u}\nJarvis: ${bot}\n\n${res}`);
+  }
+  function playGuess(){
+    const target = Math.floor(Math.random()*50)+1;
+    let tries=0; let ok=false;
+    while(tries<7){
+      const g = prompt('Guess the number (1-50). Attempts left: ' + (7-tries));
+      if(g===null) return;
+      const n = parseInt(g,10);
+      if(isNaN(n)){ alert('Enter a number'); continue; }
+      tries++;
+      if(n===target){ speak('Correct!'); alert('Correct! The number was '+target); ok=true; break; }
+      else if(n<target){ speak('Higher'); alert('Higher'); }
+      else { speak('Lower'); alert('Lower'); }
+    }
+    if(!ok) { speak('Out of attempts. The number was ' + target); alert('Out of attempts. The number was ' + target); }
+  }
 
-      function osc(freq, time, type='sine', gain=0.25){
-        return new Promise(resolve=>{
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.type = type;
-          o.frequency.value = freq;
-          g.gain.value = 0;
-          o.connect(g); g.connect(master);
-          const now = ctx.currentTime;
-          g.gain.linearRampToValueAtTime(gain, now + 0.01);
-          g.gain.exponentialRampToValueAtTime(0.0001, now + time);
-          o.start();
-          o.stop(now + time + 0.02);
-          o.onended = resolve;
-        });
+  // small helper to dynamically load script
+  function loadScript(src){
+    return new Promise((res, rej)=>{
+      const s = document.createElement('script');
+      s.src = src; s.onload = ()=>res(); s.onerror = ()=>rej(new Error('Failed to load ' + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  // EXTRA: handle extra commands BEFORE main handler (typed & observed voice lines)
+  function handleExtraCommand(raw){
+    if(!raw) return false;
+    const lower = raw.toLowerCase().trim();
+
+    // direct map
+    if(/^(power\s*off( phone)?|shutdown( phone)?)$/.test(lower)){ powerOffAnimation(); return true; }
+    if(/^(restart( phone)?|reboot( phone)?)$/.test(lower)){ restartAnimation(); return true; }
+    if(/^(flashlight|torch) on$/.test(lower)){ flashlight(true); return true; }
+    if(/^(flashlight|torch) off$/.test(lower)){ flashlight(false); return true; }
+    if(/^open camera$/.test(lower)){ openCamera(); return true; }
+    if(/^close camera$/.test(lower)){ closeCamera(); return true; }
+    if(/^open whatsapp$/.test(lower)){ openWhatsApp(); return true; }
+    if(/^open gallery$/.test(lower)){ openGallery(); return true; }
+    if(/^battery status$/.test(lower)){ batteryStatus(); return true; }
+    if(/^device info$/.test(lower)){ deviceInfo(); return true; }
+    if(/^keep screen on$/.test(lower)){ keepScreenOn(); return true; }
+    if(/^allow sleep$/.test(lower)){ allowSleep(); return true; }
+    if(/^vibrate$/.test(lower)){ vibrate(); return true; }
+    if(/^lock screen$/.test(lower)){ lockScreen(); return true; }
+    if(/^unlock screen$/.test(lower)){ unlockScreen(); return true; }
+    if(/^news$/.test(lower)){ openNews(); return true; }
+    if(/^weather$/.test(lower)){ window.open('https://wttr.in/?format=3', '_blank'); return true; }
+    if(/^play spotify$/.test(lower)){ window.open('https://open.spotify.com/collection/playlists', '_blank'); return true; }
+    if(/^screenshot$/.test(lower)){ takeScreenshot(); return true; }
+    if(/^motivate$/.test(lower)){ const q = quotes[Math.floor(Math.random()*quotes.length)]; speak(q); return true; }
+    if(/^self destruct$/.test(lower)){ runSelfDestruct(); return true; }
+    if(/^play music$/.test(lower)){ window.open('https://www.youtube.com/results?search_query=lofi+beats', '_blank'); return true; }
+    if(/^remember /.test(lower)){ // typed memory quick add
+      const mem = raw.replace(/^remember\s+/i,'').trim();
+      if(mem){ const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]'); mems.push({text:mem,time:Date.now()}); localStorage.setItem('jarvis_mems', JSON.stringify(mems)); renderMemories(); speak('Memory saved'); }
+      return true;
+    }
+    // quick open physics
+    if(lower.startsWith('open ') && (lower.includes('pw') || lower.includes('physics'))){
+      window.open('https://www.pw.live/', '_blank'); return true;
+    }
+    // news/weather/spotify handled above
+    return false;
+  }
+
+  // Observe transcript UI nodes to catch voice "User: ..." entries (so addons work for voice)
+  const seen = new Set();
+  const observer = new MutationObserver((muts)=>{
+    muts.forEach(m=>{
+      m.addedNodes && Array.from(m.addedNodes).forEach(node=>{
+        if(node && node.textContent && node.textContent.startsWith('User: ')){
+          const cmd = node.textContent.slice(6).trim();
+          if(!seen.has(cmd)){
+            seen.add(cmd);
+            // first try extras
+            handleExtraCommand(cmd);
+          }
+        }
+      });
+    });
+  });
+  if(transcriptEl){
+    observer.observe(transcriptEl, { childList:true });
+  }
+
+  // voice meter using WebAudio analyser (for mood detection)
+  async function startVoiceMeter(){
+    try{
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      if(!audioContext){
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
       }
-      function noise({time=0.2, gain=0.3}={}){
-        return new Promise(resolve=>{
-          const bufferSize = 2 * ctx.sampleRate * time;
-          const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-          const data = buffer.getChannelData(0);
-          for (let i = 0; i < bufferSize; i++) data[i] = (Math.random()*2-1) * 0.7;
-          const n = ctx.createBufferSource(); n.buffer = buffer;
-          const g = ctx.createGain(); g.gain.value = gain;
-          n.connect(g); g.connect(master);
-          n.start();
-          n.stop(ctx.currentTime + time);
-          n.onended = resolve;
-        });
-      }
-      function sweep({from=400,to=100,time=0.4,type='sine',gain=0.3}={}){
-        return new Promise(resolve=>{
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.type = type; o.frequency.setValueAtTime(from, ctx.currentTime);
-          g.gain.value = gain;
-          o.connect(g); g.connect(master);
-          o.start();
-          o.frequency.exponentialRampToValueAtTime(Math.max(1,to), ctx.currentTime + time);
-          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + time);
-          o.stop(ctx.currentTime + time + 0.02);
-          o.onended = resolve;
-        });
-      }
-      return {
-        beep: (f=440, t=0.25)=>osc(f, t, 'square', 0.25),
-        sweep, noise,
-        close: ()=>{ try{ ctx.close(); }catch(_){ } }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video:false });
+      meterSource = audioContext.createMediaStreamSource(stream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      meterSource.connect(analyser);
+      const bufferLength = analyser.frequencyBinCount;
+      meterDataArray = new Uint8Array(bufferLength);
+      const loop = ()=>{
+        analyser.getByteFrequencyData(meterDataArray);
+        let sum=0;
+        for(let i=0;i<meterDataArray.length;i++){ sum += meterDataArray[i]; }
+        const avg = sum / meterDataArray.length;
+        const pct = Math.min(100, Math.round((avg/255)*100));
+        voiceMeter.style.width = pct + '%';
+        // mood heuristic
+        if(pct > 45){
+          // energetic
+          // don't be too chatty
+        } else if(pct < 10){
+          // quiet - maybe sleepy
+        }
+        requestVoiceMeter = requestAnimationFrame(loop);
       };
+      requestVoiceMeter = requestAnimationFrame(loop);
+      // stop stream on recognition.onend by stopVoiceMeter
+    }catch(e){
+      // ignore meter errors
     }
-
-    // -------- Mini games --------
-    function playRPS(){
-      const choices = ['rock','paper','scissors'];
-      const user = prompt('Choose rock, paper or scissors:');
-      if(!user) return;
-      const u = user.toLowerCase();
-      if(!choices.includes(u)){ alert('Invalid choice'); return; }
-      const bot = choices[Math.floor(Math.random()*3)];
-      let res='Draw';
-      if((u==='rock'&&bot==='scissors')||(u==='paper'&&bot==='rock')||(u==='scissors'&&bot==='paper')) res='You win!';
-      else if(u===bot) res='Draw';
-      else res='You lose!';
-      speak(`You chose ${u}. I chose ${bot}. ${res}`);
-      alert(`You: ${u}\nJarvis: ${bot}\n\n${res}`);
+  }
+  let requestVoiceMeter = null;
+  function stopVoiceMeter(){
+    if(requestVoiceMeter){ cancelAnimationFrame(requestVoiceMeter); requestVoiceMeter = null; }
+    if(meterSource && meterSource.mediaStream) {
+      meterSource.mediaStream.getTracks().forEach(t=>t.stop());
+      meterSource.disconnect && meterSource.disconnect();
     }
-    function playGuess(){
-      const target = Math.floor(Math.random()*50)+1;
-      let tries=0; let ok=false;
-      while(tries<7){
-        const g = prompt('Guess the number (1-50). Attempts left: ' + (7-tries));
-        if(g===null) return;
-        const n = parseInt(g,10);
-        if(isNaN(n)){ alert('Enter a number'); continue; }
-        tries++;
-        if(n===target){ speak('Correct!'); alert('Correct! The number was '+target); ok=true; break; }
-        else if(n<target){ speak('Higher'); alert('Higher'); }
-        else { speak('Lower'); alert('Lower'); }
-      }
-      if(!ok) { speak('Out of attempts. The number was ' + target); alert('Out of attempts. The number was ' + target); }
-    }
+    if(analyser){ analyser.disconnect && analyser.disconnect(); analyser = null; }
+    audioContext = audioContext; // keep context
+    voiceMeter.style.width = '0%';
+  }
 
-    // -------- load script helper --------
-    function loadScript(src){
-      return new Promise((res, rej)=>{
-        const s = document.createElement('script');
-        s.src = src; s.onload = ()=>res(); s.onerror = ()=>rej(new Error('Failed to load ' + src));
-        document.head.appendChild(s);
-      });
-    }
+  // Expose some functions for debugging
+  window.Jarvis = {
+    speak, takeScreenshot, openCamera, closeCamera, flashlight, restartAnimation, powerOffAnimation, openNews, keepScreenOn, allowSleep, showMemories, renderMemories
+  };
 
-    // -------- Extra commands router (intercepts) --------
-    function handleExtraCommand(raw){
-      if(!raw) return false;
-      const lower = raw.toLowerCase().trim();
+})();
+</script>
 
-      if(/^(power\s*off( phone)?|shutdown( phone)?)$/.test(lower)){ powerOffAnimation(); return true; }
-      if(/^(restart( phone)?|reboot( phone)?)$/.test(lower)){ restartAnimation(); return true; }
-      if(/^(flashlight|torch) on$/.test(lower)){ flashlight(true); return true; }
-      if(/^(flashlight|torch) off$/.test(lower)){ flashlight(false); return true; }
-      if(/^open camera$/.test(lower)){ openCamera(); return true; }
-      if(/^close camera$/.test(lower)){ closeCamera(); return true; }
-      if(/^open whatsapp$/.test(lower)){ openWhatsApp(); return true; }
-      if(/^open gallery$/.test(lower)){ openGallery(); return true; }
-      if(/^battery status$/.test(lower)){ batteryStatus(); return true; }
-      if(/^device info$/.test(lower)){ deviceInfo(); return true; }
-      if(/^keep screen on$/.test(lower)){ keepScreenOn(); return true; }
-      if(/^allow sleep$/.test(lower)){ allowSleep(); return true; }
-      if(/^vibrate$/.test(lower)){ vibrate(); return true; }
-      if(/^lock screen$/.test(lower)){ lockScreen(); return true; }
-      if(/^unlock screen$/.test(lower)){ unlockScreen(); return true; }
-      if(/^news$/.test(lower)){ openNews(); return true; }
-      if(/^weather$/.test(lower)){ window.open('https://wttr.in/?format=3', '_blank'); return true; }
-      if(/^play spotify$/.test(lower)){ window.open('https://open.spotify.com/collection/playlists', '_blank'); return true; }
-      if(/^screenshot$/.test(lower)){ takeScreenshot(); return true; }
-      if(/^motivate$/.test(lower)){ const q = quotes[Math.floor(Math.random()*quotes.length)]; speak(q); return true; }
-      if(/^self destruct$/.test(lower)){ runSelfDestruct(); return true; }
-      if(/^play music$/.test(lower)){ window.open('https://www.youtube.com/results?search_query=lofi+beats', '_blank'); return true; }
-      if(lower.startsWith('open ')){
-        const tgt = lower.replace(/^open\s+/, '').trim();
-        if(tgt==='pw' || tgt.includes('physics')){ window.open('https://www.pw.live/', '_blank'); return true; }
-      }
-      return false;
-    }
-
-    // Observe transcript to avoid double-run of extras on voice entries
-    const seen = new Set();
-    const observer = new MutationObserver((muts)=>{
-      muts.forEach(m=>{
-        m.addedNodes && Array.from(m.addedNodes).forEach(node=>{
-          if(node && node.textContent && node.textContent.startsWith('User: ')){
-            const cmd = node.textContent.slice(6).trim();
-            if(!seen.has(cmd)){
-              seen.add(cmd);
-              if(!handleExtraCommand(cmd)) {
-                // let main handler do its work (already invoked through speech)
-              }
-            }
-          }
-        });
-      });
-    });
-    if(transcriptEl){
-      observer.observe(transcriptEl, { childList:true });
-    }
-
-    // Expose for console debug
-    window.JarvisEnh = {
-      speak, takeScreenshot, openCamera, closeCamera, flashlight, restartAnimation, powerOffAnimation, openNews, keepScreenOn, allowSleep, showMemories
-    };
-  })();
-  </script>
-
-  <!-- helper to re-dispatch util clicks into input -> send (same behavior as your last build) -->
-  <script>
-    document.querySelectorAll('.util').forEach(card=>{
-      card.addEventListener('click', ()=>{
-        const c = card.getAttribute('data-cmd');
-        const input = document.getElementById('cmdInput');
-        input.value = c;
-        document.getElementById('btnSend').click();
-      });
-    });
-  </script>
-
-  <!-- html2canvas is loaded on demand by the screenshot routine -->
 </body>
 </html>
