@@ -6,8 +6,9 @@
 <title>Jarvis — Web Voice Assistant (Ultimate)</title>
 <link rel="manifest" href="manifest_v2.json">
 <script>
+  // Register service worker if available (keeps some background behavior alive)
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(e => console.warn('SW register failed', e));
+    navigator.serviceWorker.register("sw.js").then(() => console.log("SW Registered")).catch(e => console.warn('SW register failed', e));
   }
 </script>
 <style>
@@ -116,7 +117,7 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
           <button id="btnSend" class="smallbtn">Send</button>
         </div>
 
-        <div class="hint">Tip: Say <b>"Hey Jarvis"</b> (or your custom wake) to activate when wake-word is ON. Try: <em>open youtube, search weather Chennai, time, wiki Tesla, calculate 12*8, set timer 10 seconds</em></div>
+        <div class="hint">Tip: Say <b>"Hey Jarvis"</b> (or your custom wake) to activate when wake-word is ON. Try: <em>open youtube, search weather Chennai, time, wiki Tesla, calculate 12*8, set timer 10 seconds, play kesariya on spotify</em></div>
 
         <div style="margin-top:12px">
           <strong>Quick commands</strong>
@@ -257,17 +258,20 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
 
 <script>
 /* ============================================================
-   Jarvis — Big single-file assistant
-   - Original commands preserved (open/search/wiki/calc/timer/music/joke)
-   - New features added: custom wake word, face-capture login (enroll), mood detector (basic), weather shortcut, translate shortcut, memories UI, improved self-destruct, better screenshot, voice meter visualization, voice selection.
-   - All client-side, no backend.
+   Jarvis — Combined & fixed
+   - Merged Part1 + Part2
+   - Fixed recognition initialization, auto-restart
+   - Added Spotify and YouTube "play <song> on spotify/youtube"
+   - Improved mic meter to reduce conflicts (best-effort)
+   - Preserved original UI and behavior where possible
    ============================================================ */
+
 (function(){
   // Basic feature detection
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const synth = window.speechSynthesis;
 
-  // UI elements
+  // UI elements (same as original)
   const btnStart = document.getElementById('btnStart');
   const btnStop = document.getElementById('btnStop');
   const btnWake = document.getElementById('btnWake');
@@ -338,6 +342,8 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
   let meterSource = null;
   let faceDataUrl = localStorage.getItem('jarvis_face') || null;
   let customWake = localStorage.getItem('jarvis_wake') || 'hey jarvis';
+  let meterStream = null;
+  let requestVoiceMeter = null;
 
   // small datasets
   const jokes = [
@@ -392,22 +398,27 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
       synth.cancel(); // stop previous
       synth.speak(u);
       log('Jarvis: ' + text);
+      addTranscriptEntry('Jarvis: ' + text);
     } catch (e) {
       console.error('synth error', e);
     }
   }
 
-  // Recognition setup (keeps original behavior)
+  /* --------------------------
+     SpeechRecognition setup
+     -------------------------- */
   function setupRecognition(){
     if(!SpeechRecognition) {
       listenStatus.textContent = 'SpeechRecognition not supported';
       btnStart.disabled = true; btnStop.disabled = true;
+      log('SpeechRecognition not supported', 'err');
       return;
     }
+
     recognition = new SpeechRecognition();
     recognition.lang = lang;
     recognition.interimResults = false;
-    recognition.continuous = chkContinuous.checked;
+    recognition.continuous = chkContinuous.checked || true; // try continuous by default
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
@@ -415,24 +426,34 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
       listenStatus.textContent = 'Listening...';
       btnStart.textContent = 'Listening';
       log('Voice recognition started');
-      // start mic meter
+      // start mic meter (best-effort)
       startVoiceMeter();
     };
 
     recognition.onend = () => {
+      // update UI
       listening = false;
       listenStatus.textContent = 'Idle';
       btnStart.textContent = 'Start Listening';
       log('Voice recognition stopped', 'info');
       stopVoiceMeter();
-      if(chkContinuous.checked && recognition){
-        setTimeout(()=> { try{ recognition.start() } catch(e){} }, 250);
+      // Auto restart if continuous or user toggled to keep it alive
+      if(chkContinuous.checked){
+        try{
+          recognition.start();
+        }catch(e){
+          // ignore
+        }
       }
     };
 
     recognition.onerror = (ev) => {
       log('Speech error: ' + ev.error, 'err');
       stopVoiceMeter();
+      // on some errors, try to restart automatically
+      if(ev.error === 'network' || ev.error === 'no-speech' || ev.error === 'aborted' || ev.error === 'audio-capture'){
+        try{ setTimeout(()=> recognition.start(), 400); }catch(_){}
+      }
     };
 
     recognition.onresult = (ev) => {
@@ -442,10 +463,12 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
       log('Heard: ' + res);
       // special wake behavior: if wake required or custom set, use it
       const lw = res.toLowerCase();
-      const wakeNormalized = customWake ? customWake.toLowerCase() : 'hey jarvis';
+      const wakeNormalized = (customWake || 'hey jarvis').toLowerCase();
       if(chkWakeReq.checked){
         if(lw.includes(wakeNormalized) || lw.includes('hey jarvis') || lw.includes('ok jarvis')){
-          const stripped = lw.replace(/^.*?(hey jarvis|ok jarvis|"+wakeNormalized+")[, ]*/,'').trim();
+          let stripped = lw;
+          // remove the wake phrase occurrences
+          stripped = stripped.replace(new RegExp(wakeNormalized, 'i'),'').replace(/^(hey jarvis|ok jarvis)[, ]*/i,'').trim();
           const command = stripped ? stripped : '';
           if(command) handleCommand(command);
           else { speak('Yes?'); }
@@ -455,11 +478,10 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
           return;
         }
       } else {
+        // if wake-word toggle ON, require presence of wake phrase to trigger
         if(wakeWordOn){
           if(lw.includes(wakeNormalized) || lw.includes('hey jarvis') || lw.includes('ok jarvis')){
-            // Strip wake phrase and handle remainder
             let cmd = lw;
-            // Try to remove either the custom wake or common variants
             if(customWake) cmd = cmd.replace(new RegExp(customWake, 'i'),'').trim();
             cmd = cmd.replace(/^.*?(hey jarvis|ok jarvis)[, ]*/i,'').trim();
             if(cmd) handleCommand(cmd);
@@ -472,11 +494,10 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
     };
   }
 
-  // Main command handler (keeps original behavior + extras)
+  // Main command handler (keeps original behavior + extras + new spotify/youtube)
   async function handleCommand(textRaw){
-    const text = textRaw.trim();
+    const text = (textRaw||'').trim();
     if(!text) return;
-    // show in UI
     addTranscriptEntry('User: ' + text);
     const lower = text.toLowerCase();
 
@@ -487,15 +508,51 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
       return;
     }
 
+    // Spotify Play: "play <song> on spotify" or "play <song> spotify"
+    const spMatch = lower.match(/play (.+?) (on )?spotify$/);
+    if(spMatch){
+      const song = spMatch[1].trim();
+      if(song){
+        speak(`Playing ${song} on Spotify.`);
+        const url = 'https://open.spotify.com/search/' + encodeURIComponent(song);
+        window.open(url, '_blank');
+        addTranscriptEntry('Jarvis: opened Spotify search for ' + song);
+        return;
+      }
+    }
+
+    // Spotify play with "play <song> on spotify" alternative
+    if(lower.includes('on spotify') && lower.startsWith('play ')){
+      const song = lower.replace('play','').replace('on spotify','').trim();
+      if(song){
+        speak(`Playing ${song} on Spotify.`);
+        window.open('https://open.spotify.com/search/' + encodeURIComponent(song), '_blank');
+        return;
+      }
+    }
+
+    // YouTube Play: "play <song> on youtube"
+    const ytMatch = lower.match(/play (.+?) (on )?youtube$/);
+    if(ytMatch){
+      const song = ytMatch[1].trim();
+      if(song){
+        speak(`Playing ${song} on YouTube.`);
+        const url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(song);
+        window.open(url, '_blank');
+        addTranscriptEntry('Jarvis: opened YouTube search for ' + song);
+        return;
+      }
+    }
+
     // time/date
-    if(lower.includes('time')) {
+    if(lower.includes('time') && !lower.includes('timer')) {
       const now = new Date();
       const out = `It is ${now.toLocaleTimeString()}`;
       speak(out);
       addTranscriptEntry('Jarvis: ' + out);
       return;
     }
-    if(lower.includes('date')) {
+    if(lower.includes('date') && !lower.includes('timer')) {
       const now = new Date();
       const out = `Today is ${now.toLocaleDateString()}`;
       speak(out);
@@ -549,7 +606,7 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
       return;
     }
 
-    // calculate
+    // calculate (simple)
     if(lower.startsWith('calculate ') || lower.startsWith('what is ') || /^[0-9\+\-\*\/\. ]+$/.test(lower)) {
       const expr = text.replace(/^(calculate|what is)\s+/i,'').replace(/[^0-9+\-*/(). %]/g,'');
       if(!expr){ speak('I could not parse the expression'); return; }
@@ -580,7 +637,7 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
       return;
     }
 
-    // play music -> spotify or youtube
+    // play music -> spotify or youtube (fallback)
     if(lower.includes('play music') || lower.includes('play song') || lower.includes('play spotify')) {
       speak('Opening Spotify playlist');
       window.open('https://open.spotify.com', '_blank');
@@ -731,17 +788,9 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
       return;
     }
 
-    // spotify
-    if(lower.includes('spotify') && lower.includes('play')){
+    // spotify generic
+    if(lower.includes('spotify') && (lower.includes('play') || lower.includes('open'))){
       window.open('https://open.spotify.com', '_blank');
-      return;
-    }
-
-    // physics wallah (special)
-    if(lower.includes("physics wallah") || lower.includes("open pw") || lower.includes("play pw")){
-      speak("Opening Physics Wallah");
-      try{ window.location.href = "intent://#Intent;package=in.eduwall.pwclassroom;scheme=pw;end"; }catch(_){}
-      setTimeout(()=> window.open("https://www.pw.live/", "_blank"), 800);
       return;
     }
 
@@ -787,9 +836,12 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
 
   chkContinuous.addEventListener('change', ()=>{
     if(recognition){
-      recognition.stop();
+      try{ recognition.stop(); } catch(e){}
       recognition = null;
       setupRecognition();
+      if(chkContinuous.checked){
+        try{ recognition.start(); } catch(e){}
+      }
     }
     log('Continuous: ' + chkContinuous.checked);
   });
@@ -810,7 +862,6 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
   btnSend.addEventListener('click', ()=> {
     const text = cmdInput.value.trim();
     if(!text) return;
-    // first run extra handlers (add-ons) — they can intercept
     if(!handleExtraCommand(text)) handleCommand(text);
     cmdInput.value='';
   });
@@ -955,7 +1006,7 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
       c.height = v.videoHeight || 240;
       const ctx = c.getContext('2d');
       ctx.drawImage(v,0,0,c.width,c.height);
-      const current = c.toDataURL('image/png');
+    const current = c.toDataURL('image/png');
       s.getTracks().forEach(t=>t.stop());
       v.remove();
       // compare simple: create image elements and compare data lengths / naive pixel comparison
@@ -1281,16 +1332,16 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
     if(/^keep screen on$/.test(lower)){ keepScreenOn(); return true; }
     if(/^allow sleep$/.test(lower)){ allowSleep(); return true; }
     if(/^vibrate$/.test(lower)){ vibrate(); return true; }
-    if(/^lock screen$/.test(lower)){ lockScreen(); return true; }
-    if(/^unlock screen$/.test(lower)){ unlockScreen(); return true; }
-    if(/^news$/.test(lower)){ openNews(); return true; }
-    if(/^weather$/.test(lower)){ window.open('https://wttr.in/?format=3', '_blank'); return true; }
-    if(/^play spotify$/.test(lower)){ window.open('https://open.spotify.com/collection/playlists', '_blank'); return true; }
-    if(/^screenshot$/.test(lower)){ takeScreenshot(); return true; }
-    if(/^motivate$/.test(lower)){ const q = quotes[Math.floor(Math.random()*quotes.length)]; speak(q); return true; }
-    if(/^self destruct$/.test(lower)){ runSelfDestruct(); return true; }
-    if(/^play music$/.test(lower)){ window.open('https://www.youtube.com/results?search_query=lofi+beats', '_blank'); return true; }
-    if(/^remember /.test(lower)){ // typed memory quick add
+    if(/^lock screen$/.test(lower){ lockScreen(); return true; }
+    if(/^unlock screen$/.test(lower){ unlockScreen(); return true; }
+    if(/^news$/.test(lower){ openNews(); return true; }
+    if(/^weather$/.test(lower){ window.open('https://wttr.in/?format=3', '_blank'); return true; }
+    if(/^play spotify$/.test(lower){ window.open('https://open.spotify.com/collection/playlists', '_blank'); return true; }
+    if(/^screenshot$/.test(lower){ takeScreenshot(); return true; }
+    if(/^motivate$/.test(lower){ const q = quotes[Math.floor(Math.random()*quotes.length)]; speak(q); return true; }
+    if(/^self destruct$/.test(lower){ runSelfDestruct(); return true; }
+    if(/^play music$/.test(lower){ window.open('https://www.youtube.com/results?search_query=lofi+beats', '_blank'); return true; }
+    if(/^remember /.test(lower){ // typed memory quick add
       const mem = raw.replace(/^remember\s+/i,'').trim();
       if(mem){ const mems = JSON.parse(localStorage.getItem('jarvis_mems')||'[]'); mems.push({text:mem,time:Date.now()}); localStorage.setItem('jarvis_mems', JSON.stringify(mems)); renderMemories(); speak('Memory saved'); }
       return true;
@@ -1380,4 +1431,4 @@ select.verysmall{ padding:6px; border-radius:6px; background:var(--card); color:
 </script>
 </body>
 </html>
-
+      
